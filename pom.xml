@@ -7,6 +7,12 @@
   <name>UDT Java implementation</name>
   <version>0.7-SNAPSHOT</version>
   <url>http://sourceforge.net/projects/udt-java</url>
+  <properties>
+    <!-- Compiler properties -->
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <encoding>UTF-8</encoding>
+  </properties>
   <developers>
     <developer>
       <name>Bernd Schuller</name>
