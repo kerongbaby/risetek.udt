@@ -59,7 +59,7 @@ public class UDTClient {
 
 	public UDTClient(InetAddress address)throws SocketException, UnknownHostException{
 		//create endpoint
-		clientEndpoint=new UDPEndPoint(address);
+		clientEndpoint=new UDPEndPoint(address, 0);
 		logger.info("Created client endpoint on port "+clientEndpoint.getLocalPort());
 	}
 
@@ -87,8 +87,13 @@ public class UDTClient {
 			Thread.sleep(50);
 		}
 		logger.info("The UDTClient is connected");
+		connected(this);
 	}
 
+	public void connected(UDTClient client) {
+		System.out.println("UDTClient connected");
+	}
+	
 	/**
 	 * sends the given data asynchronously
 	 * 

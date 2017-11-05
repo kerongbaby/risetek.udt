@@ -85,7 +85,7 @@ public class SendFile extends Application{
 			UDTServerSocket server=new UDTServerSocket(myHost,serverPort);
 			while(true){
 				UDTSocket socket=server.accept();
-				Thread.sleep(1000);
+				// Thread.sleep(1000);
 				threadPool.execute(new RequestRunner(socket));
 			}
 		}catch(Exception ex){
@@ -99,17 +99,8 @@ public class SendFile extends Application{
 	 * @throws Exception
 	 */
 	public static void main(String[] fullArgs) throws Exception{
-
-		String[] args=parseOptions(fullArgs);
-
-		int serverPort=65321;
-		try{
-			serverPort=Integer.parseInt(args[0]);
-		}catch(Exception ex){
-			usage();
-			System.exit(1);
-		}
-		SendFile sf=new SendFile(serverPort);
+		System.out.println("listing on 18007");
+		SendFile sf=new SendFile(18007);
 		sf.run();
 	}
 

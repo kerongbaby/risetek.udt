@@ -74,6 +74,13 @@ public class ClientSession extends UDTSession {
 			if(getState()<=handshaking){
 				setState(handshaking);
 				sendInitialHandShake();
+				
+				/*
+				DatagramPacket dp= new DatagramPacket(new byte[2400],2400);
+				System.out.println("!!!!!! do receive 1");
+				endPoint.getSocket().receive(dp);
+				System.out.println("!!!!!! do receive 2");
+				*/
 			}
 			else if(getState()==handshaking+1){
 				sendSecondHandshake();
@@ -81,10 +88,10 @@ public class ClientSession extends UDTSession {
 			
 			if(getState()==invalid)throw new IOException("Can't connect!");
 			if(n++ > 10)throw new IOException("Could not connect to server within the timeout.");
-			
-			Thread.sleep(500);
+			System.out.println("sleeping.............");
+			Thread.sleep(5000);
 		}
-		Thread.sleep(1000);
+		// Thread.sleep(1000);
 		cc.init();
 		logger.info("Connected, "+n+" handshake packets sent");		
 	}
@@ -164,7 +171,7 @@ public class ClientSession extends UDTSession {
 		ConnectionHandshake handshake = new ConnectionHandshake();
 		handshake.setConnectionType(ConnectionHandshake.CONNECTION_TYPE_REGULAR);
 		handshake.setSocketType(ConnectionHandshake.SOCKET_TYPE_DGRAM);
-		long initialSequenceNo=SequenceNumber.random();
+//		long initialSequenceNo=SequenceNumber.random();
 		setInitialSequenceNumber(initialSequenceNo);
 		handshake.setInitialSeqNo(initialSequenceNo);
 		handshake.setPacketSize(getDatagramSize());

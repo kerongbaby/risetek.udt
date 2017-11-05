@@ -113,6 +113,14 @@ public class UDPEndPoint {
 	 * @throws UnknownHostException
 	 */
 	public UDPEndPoint(InetAddress localAddress, int localPort)throws SocketException, UnknownHostException{
+		if(localPort == 0)
+			dgSocket=new DatagramSocket();
+		else
+			dgSocket=new DatagramSocket(localPort);
+		
+		port=dgSocket.getLocalPort();
+		
+		/*
 		if(localAddress==null){
 			dgSocket=new DatagramSocket(localPort, localAddress);
 		}else{
@@ -120,27 +128,12 @@ public class UDPEndPoint {
 		}
 		if(localPort>0)this.port = localPort;
 		else port=dgSocket.getLocalPort();
-
-		configureSocket();
-	}
-
-	protected void configureSocket()throws SocketException{
+*/
 		//set a time out to avoid blocking in doReceive()
 		dgSocket.setSoTimeout(100000);
 		//buffer size
 		dgSocket.setReceiveBufferSize(128*1024);
-		dgSocket.setReuseAddress(false);
-	}
-
-	/**
-	 * bind to the default network interface on the machine
-	 * 
-	 * @param localPort - the port to bind to. If the port is zero, the system will pick an ephemeral port.
-	 * @throws SocketException
-	 * @throws UnknownHostException
-	 */
-	public UDPEndPoint(int localPort)throws SocketException, UnknownHostException{
-		this(null,localPort);
+		dgSocket.setReuseAddress(true);
 	}
 
 	/**
@@ -306,7 +299,7 @@ public class UDPEndPoint {
 			}
 		}
 		else {
-			throw new IOException("dest ID sent by client does not match");
+			throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);
 		}
 		Long peerSocketID=((ConnectionHandshake)packet).getSocketID();
 		peer.setSocketID(peerSocketID);

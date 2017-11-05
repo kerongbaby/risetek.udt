@@ -59,6 +59,7 @@ public class ReceiveFile extends Application{
 	private final String remoteFile;
 	private final String localFile;
 	private final NumberFormat format;
+	private UDTClient myClient;
 	
 	public ReceiveFile(String serverHost, int serverPort, String remoteFile, String localFile){
 		this.serverHost=serverHost;
@@ -73,10 +74,20 @@ public class ReceiveFile extends Application{
 		configure();
 		verbose=true;
 		try{
+			/*
 			UDTReceiver.connectionExpiryDisabled=true;
 			InetAddress myHost=localIP!=null?InetAddress.getByName(localIP):InetAddress.getLocalHost();
-			UDTClient client=localPort!=-1?new UDTClient(myHost,localPort):new UDTClient(myHost);
+			UDTClient client=new UDTClient(myHost,(localPort!=-1)?localPort:0){
+				@Override
+				public void connected(UDTClient client) {
+					super.connected(client);
+					
+				}
+			};
+			
 			client.connect(serverHost, serverPort);
+			*/
+			UDTClient client = myClient;
 			UDTInputStream in=client.getInputStream();
 			UDTOutputStream out=client.getOutputStream();
 			
@@ -137,25 +148,36 @@ public class ReceiveFile extends Application{
 	
 	
 	public static void main(String[] fullArgs) throws Exception{
-		int serverPort=65321;
+		int serverPort=18007;
 		String serverHost="localhost";
-		String remoteFile="";
-		String localFile="";
-		
+		String remoteFile="udt.jar";
+		String localFile="a.tmp";
 		String[] args=parseOptions(fullArgs);
 		
 		try{
 			serverHost=args[0];
-			serverPort=Integer.parseInt(args[1]);
-			remoteFile=args[2];
-			localFile=args[3];
+			//serverPort=Integer.parseInt(args[1]);
+			//remoteFile=args[2];
+			//localFile=args[3];
 		}catch(Exception ex){
 			usage();
 			System.exit(1);
 		}
 		
 		ReceiveFile rf=new ReceiveFile(serverHost,serverPort,remoteFile, localFile);
-		rf.run();
+		
+		UDTReceiver.connectionExpiryDisabled=true;
+		InetAddress myHost=localIP!=null?InetAddress.getByName(localIP):InetAddress.getLocalHost();
+		UDTClient client=new UDTClient(myHost,(localPort!=-1)?localPort:0){
+			@Override
+			public void connected(UDTClient client) {
+				super.connected(client);
+				rf.myClient = client;
+				rf.run();
+			}
+		};
+		
+		client.connect(serverHost, serverPort);
 	}
 	
 	public static void usage(){
