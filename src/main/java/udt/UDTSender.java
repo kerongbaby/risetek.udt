@@ -66,7 +66,7 @@ import udt.util.Util;
  */
 public class UDTSender {
 
-	private static final Logger logger=Logger.getLogger(UDTClient.class.getName());
+	private static final Logger logger=Logger.getLogger(UDTSender.class.getName());
 
 	private final UDPEndPoint endpoint;
 

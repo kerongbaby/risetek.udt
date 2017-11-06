@@ -46,8 +46,10 @@ import udt.util.SequenceNumber;
  * Client side of a client-server UDT connection. 
  * Once established, the session provides a valid {@link UDTSocket}.
  */
-public class ClientSession extends UDTSession {
+public abstract class ClientSession extends UDTSession {
 
+	public abstract void connected();
+	
 	private static final Logger logger=Logger.getLogger(ClientSession.class.getName());
 
 	private UDPEndPoint endPoint;
@@ -74,26 +76,20 @@ public class ClientSession extends UDTSession {
 			if(getState()<=handshaking){
 				setState(handshaking);
 				sendInitialHandShake();
-				
-				/*
-				DatagramPacket dp= new DatagramPacket(new byte[2400],2400);
-				System.out.println("!!!!!! do receive 1");
-				endPoint.getSocket().receive(dp);
-				System.out.println("!!!!!! do receive 2");
-				*/
 			}
 			else if(getState()==handshaking+1){
 				sendSecondHandshake();
 			}
 			
 			if(getState()==invalid)throw new IOException("Can't connect!");
-			if(n++ > 10)throw new IOException("Could not connect to server within the timeout.");
-			System.out.println("sleeping.............");
-			Thread.sleep(5000);
+			if(n++ > 1000)throw new IOException("Could not connect to server within the timeout.");
+			Thread.sleep(50);
 		}
-		// Thread.sleep(1000);
+		// ready状态会涉及到UDTSocket的构造，如果不延迟一阵，后期的获取inputStream会出现问题，这里说明顺序是有提升空间的。
+		Thread.sleep(1000);
 		cc.init();
 		logger.info("Connected, "+n+" handshake packets sent");		
+		connected();
 	}
 
 	@Override

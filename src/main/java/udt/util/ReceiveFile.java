@@ -170,8 +170,7 @@ public class ReceiveFile extends Application{
 		InetAddress myHost=localIP!=null?InetAddress.getByName(localIP):InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,(localPort!=-1)?localPort:0){
 			@Override
-			public void connected(UDTClient client) {
-				super.connected(client);
+			public void UDTClientConnected(UDTClient client) {
 				rf.myClient = client;
 				rf.run();
 			}

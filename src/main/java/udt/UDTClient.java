@@ -44,7 +44,7 @@ import udt.packets.Destination;
 import udt.packets.Shutdown;
 import udt.util.UDTStatistics;
 
-public class UDTClient {
+public abstract class UDTClient {
 
 	private static final Logger logger=Logger.getLogger(UDTClient.class.getName());
 	private final UDPEndPoint clientEndpoint;
@@ -78,21 +78,25 @@ public class UDTClient {
 		InetAddress address=InetAddress.getByName(host);
 		Destination destination=new Destination(address,port);
 		//create client session...
-		clientSession=new ClientSession(clientEndpoint,destination);
+		clientSession=new ClientSession(clientEndpoint,destination) {
+
+			@Override
+			public void connected() {
+				logger.info("The UDTClient is connected");
+				UDTClientConnected(UDTClient.this);
+			}
+			
+		};
 		clientEndpoint.addSession(clientSession.getSocketID(), clientSession);
 		clientEndpoint.start();
 		clientSession.connect();
-		//wait for handshake
+/*		//wait for handshake
 		while(!clientSession.isReady()){
 			Thread.sleep(50);
 		}
-		logger.info("The UDTClient is connected");
-		connected(this);
-	}
+*/	}
 
-	public void connected(UDTClient client) {
-		System.out.println("UDTClient connected");
-	}
+	public abstract void UDTClientConnected(UDTClient client);
 	
 	/**
 	 * sends the given data asynchronously
