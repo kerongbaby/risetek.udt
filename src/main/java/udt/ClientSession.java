@@ -128,9 +128,10 @@ public abstract class ClientSession extends UDTSession {
 	}
 
 	protected void handleConnectionHandshake(ConnectionHandshake hs, Destination peer){
+		System.out.println("handleConnectionHandshake:" + getState());
 
 		if (getState()==handshaking) {
-			logger.info("Received initial handshake response from "+peer+"\n"+hs);
+			//logger.info("Received initial handshake response from "+peer+"\n"+hs);
 			if(hs.getConnectionType()==ConnectionHandshake.CONNECTION_SERVER_ACK){
 				try{
 					//TODO validate parameters sent by peer
@@ -151,7 +152,7 @@ public abstract class ClientSession extends UDTSession {
 		}
 		else if(getState()==handshaking+1){
 			try{
-				logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
+				// logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
 				//TODO validate parameters sent by peer
 				setState(ready);
 				socket=new UDTSocket(endPoint,this);
