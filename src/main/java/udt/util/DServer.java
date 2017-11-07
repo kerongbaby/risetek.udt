@@ -20,7 +20,7 @@ import udt.UDTSocket;
 public class DServer extends Application{
 
 	private final int serverPort;
-	private final static int numberPackets = 100;
+	private final static int numberPackets = 1024;
 
 	//TODO configure pool size
 	private final ExecutorService threadPool=Executors.newFixedThreadPool(3);
@@ -102,12 +102,9 @@ public class DServer extends Application{
 
 	private static void sendDatas(OutputStream os)throws Exception{
 		byte[]buf=new byte[1024];
-		System.out.print("sending index: ");
 		for(int looper = 0; looper < numberPackets; looper++) {
-			System.out.print(looper + " : ");
 			os.write(buf, 0, 1024);
-			os.flush();
 		}
-		System.out.println(" << end");
+		os.flush();
 	}	
 }

@@ -34,7 +34,7 @@ public class DClient extends Application{
 			byte[]buf=new byte[65536];
 			int c;
 			long read=0;
-			while(read < 100*1024){
+			while(read < 1024*1024){
 				c=in.read(buf);
 				if(c<0)break;
 				read+=c;
@@ -47,7 +47,7 @@ public class DClient extends Application{
 		
 			client.shutdown();
 			
-			if(verbose)System.out.println(client.getStatistics());
+			System.out.println(client.getStatistics());
 		}catch(Exception ex){
 			throw new RuntimeException(ex);
 		}
