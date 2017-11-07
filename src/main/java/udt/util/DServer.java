@@ -20,7 +20,7 @@ import udt.UDTSocket;
 public class DServer extends Application{
 
 	private final int serverPort;
-	private final static int numberPackets = 10;
+	private final static int numberPackets = 100;
 
 	//TODO configure pool size
 	private final ExecutorService threadPool=Executors.newFixedThreadPool(3);

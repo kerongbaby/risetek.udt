@@ -115,7 +115,7 @@ public class FlowWindow {
 		}
 	}
 
-	boolean isEmpty(){
+	public boolean isEmpty(){
 		return isEmpty;
 	}
 

@@ -64,7 +64,7 @@ import udt.util.Util;
  * 
  * @see UDTReceiver
  */
-public class UDTSender {
+public abstract class UDTSender {
 
 	private static final Logger logger=Logger.getLogger(UDTSender.class.getName());
 
@@ -173,6 +173,11 @@ public class UDTSender {
 				catch(IOException ex){
 					ex.printStackTrace();
 					logger.log(Level.SEVERE,"",ex);
+				} finally {
+					System.out.println("stoped");
+					
+					UDTSender.this.UDTSenderStoped();
+					
 				}
 				logger.info("STOPPING SENDER for "+session);
 			}
@@ -183,6 +188,7 @@ public class UDTSender {
 		senderThread.start();
 	}
 
+	public abstract void UDTSenderStoped();
 
 	/** 
 	 * sends the given data packet, storing the relevant information
@@ -403,7 +409,7 @@ public class UDTSender {
 						x++;
 					}
 					passed=Util.getCurrentTime()-iterationStart;
-					if(stopped)return;
+					if(stopped && flowWindow.isEmpty())return;
 				}
 			}
 		}

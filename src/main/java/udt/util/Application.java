@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 
 public abstract class Application implements Runnable {
 	
-	protected static boolean verbose;
+	protected static boolean verbose=false;
 
 	protected static String localIP=null;
 

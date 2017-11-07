@@ -68,7 +68,14 @@ public class UDTSocket {
 		this.endpoint=endpoint;
 		this.session=session;
 		this.receiver=new UDTReceiver(session,endpoint);
-		this.sender=new UDTSender(session,endpoint);
+		this.sender=new UDTSender(session,endpoint) {
+
+			@Override
+			public void UDTSenderStoped() {
+				System.out.println("UDTSender had stoped");
+			}
+			
+		};
 	}
 
 	public UDTReceiver getReceiver() {

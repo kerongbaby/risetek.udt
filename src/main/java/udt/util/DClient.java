@@ -22,7 +22,7 @@ public class DClient extends Application{
 	
 	public void run(){
 		configure();
-		verbose=true;
+		verbose=false;//true;
 		try{
 			UDTClient client = myClient;
 			UDTInputStream in=client.getInputStream();
@@ -34,7 +34,7 @@ public class DClient extends Application{
 			byte[]buf=new byte[65536];
 			int c;
 			long read=0;
-			while(read < 10*1024){
+			while(read < 100*1024){
 				c=in.read(buf);
 				if(c<0)break;
 				read+=c;

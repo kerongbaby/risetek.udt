@@ -201,7 +201,7 @@ public class UDTReceiver {
 			public void run(){
 				try{
 					while(session.getSocket()==null)Thread.sleep(100);
-					session.getSocket().getInputStream();
+					//session.getSocket().getInputStream();
 					
 					logger.info("STARTING RECEIVER for "+session);
 					nextACK=Util.getCurrentTime()+ackTimerInterval;
@@ -229,10 +229,10 @@ public class UDTReceiver {
 	 */
 	protected void receive(UDTPacket p)throws IOException{
 		if(storeStatistics)dgReceiveInterval.end();
-		if(!p.isControlPacket()){
+/*		if(!p.isControlPacket()){
 			System.out.println("++ "+p+" queuesize="+handoffQueue.size());
 		}
-		handoffQueue.offer(p);
+*/		handoffQueue.offer(p);
 		if(storeStatistics)dgReceiveInterval.begin();
 	}
 
@@ -261,30 +261,39 @@ public class UDTReceiver {
 		//perform time-bounded UDP receive
 		UDTPacket packet=handoffQueue.poll(Util.getSYNTime(), TimeUnit.MICROSECONDS);
 		if(packet!=null){
+			if(storeStatistics)processTime.begin();
 			//reset exp count to 1
 			expCount=1;
 			//If there is no unacknowledged data packet, or if this is an 
 			//ACK or NAK control packet, reset the EXP timer.
-			boolean needEXPReset=false;
+
 			if(packet.isControlPacket()){
 				ControlPacket cp=(ControlPacket)packet;
 				int cpType=cp.getControlPacketType();
 				if(cpType==ControlPacketType.ACK.ordinal() || cpType==ControlPacketType.NAK.ordinal()){
-					needEXPReset=true;
+					nextEXP=Util.getCurrentTime()+expTimerInterval;
+				} else if(cpType == ControlPacketType.ACK2.ordinal()) {
+					Acknowledgment2 ack2=(Acknowledgment2)packet;
+					onAck2PacketReceived(ack2);
+				} else if (packet instanceof Shutdown){
+					onShutdown();
+				}
+			} else {
+				DataPacket dp=(DataPacket)packet;
+				if(storeStatistics){
+					dataPacketInterval.end();
+					dataProcessTime.begin();
+				}
+				onDataPacketReceived(dp);
+				if(storeStatistics){
+					dataProcessTime.end();
+					dataPacketInterval.begin();
 				}
 			}
-			
-			if(needEXPReset){
-				nextEXP=Util.getCurrentTime()+expTimerInterval;
-			}
-			if(storeStatistics)processTime.begin();
-			
-			processUDTPacket(packet);
-			
 			if(storeStatistics)processTime.end();
 		}
 		
-		Thread.yield();
+		// Thread.yield();
 	}
 
 	/**
@@ -359,33 +368,6 @@ public class UDTReceiver {
 			sendKeepAlive();
 		}
 		expCount++;
-	}
-
-	protected void processUDTPacket(UDTPacket p)throws IOException{
-		//(3).Check the packet type and process it according to this.
-		
-		if(!p.isControlPacket()){
-			DataPacket dp=(DataPacket)p;
-			if(storeStatistics){
-				dataPacketInterval.end();
-				dataProcessTime.begin();
-			}
-			onDataPacketReceived(dp);
-			if(storeStatistics){
-				dataProcessTime.end();
-				dataPacketInterval.begin();
-			}
-		}
-
-		else if (p.getControlPacketType()==ControlPacketType.ACK2.ordinal()){
-			Acknowledgment2 ack2=(Acknowledgment2)p;
-			onAck2PacketReceived(ack2);
-		}
-
-		else if (p instanceof Shutdown){
-			onShutdown();
-		}
-
 	}
 
 	//every nth packet will be discarded... for testing only of course

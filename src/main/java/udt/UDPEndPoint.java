@@ -60,7 +60,7 @@ import udt.util.UDTThreadFactory;
  */
 public class UDPEndPoint {
 
-	private static final Logger logger=Logger.getLogger(ClientSession.class.getName());
+	private static final Logger logger=Logger.getLogger(UDPEndPoint.class.getName());
 
 	private final int port;
 
