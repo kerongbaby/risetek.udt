@@ -51,13 +51,13 @@ public abstract class UDTClient {
 	private ClientSession clientSession;
 
 
-	public UDTClient(InetAddress address, int localport)throws SocketException, UnknownHostException{
+	public UDTClient(InetAddress address, int localport)throws IOException {
 		//create endpoint
 		clientEndpoint=new UDPEndPoint(address,localport);
 		logger.info("Created client endpoint on port "+localport);
 	}
 
-	public UDTClient(InetAddress address)throws SocketException, UnknownHostException{
+	public UDTClient(InetAddress address)throws IOException {
 		//create endpoint
 		clientEndpoint=new UDPEndPoint(address, 0);
 		logger.info("Created client endpoint on port "+clientEndpoint.getLocalPort());

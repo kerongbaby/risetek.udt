@@ -32,6 +32,7 @@
 
 package udt;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -54,13 +55,13 @@ public class UDTServerSocket {
 	 * @param localAddress
 	 * @param port - the local port. If 0, an ephemeral port will be chosen
 	 */
-	public UDTServerSocket(InetAddress localAddress, int port)throws SocketException,UnknownHostException{
+	public UDTServerSocket(InetAddress localAddress, int port)throws IOException {
 		endpoint=new UDPEndPoint(localAddress,port);
 		logger.info("Created server endpoint on port "+endpoint.getLocalPort());
 	}
 
 	//starts a server on localhost
-	public UDTServerSocket(int port)throws SocketException,UnknownHostException{
+	public UDTServerSocket(int port)throws IOException {
 		this(InetAddress.getLocalHost(),port);
 	}
 	
@@ -87,7 +88,7 @@ public class UDTServerSocket {
 		throw new InterruptedException();
 	} 
 	
-	public void shutDown(){
+	public void shutDown() throws IOException {
 		shutdown=true;
 		endpoint.stop();
 	}

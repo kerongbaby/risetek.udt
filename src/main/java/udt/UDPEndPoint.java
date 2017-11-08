@@ -36,9 +36,15 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,9 +68,11 @@ public class UDPEndPoint {
 
 	private static final Logger logger=Logger.getLogger(UDPEndPoint.class.getName());
 
-	private final int port;
+//	private final int port;
 
-	private final DatagramSocket dgSocket;
+//	private final DatagramSocket dgSocket;
+	private final DatagramChannel dgChannel;
+	private final Selector selector;
 
 	//active sessions keyed by socket ID
 	private final Map<Long,UDTSession>sessions=new ConcurrentHashMap<Long, UDTSession>();
@@ -86,22 +94,12 @@ public class UDPEndPoint {
 	public static final int DATAGRAM_SIZE=1400;
 
 	/**
-	 * create an endpoint on the given socket
-	 * 
-	 * @param socket -  a UDP datagram socket
-	 */
-	public UDPEndPoint(DatagramSocket socket){
-		this.dgSocket=socket;
-		port=dgSocket.getLocalPort();
-	}
-
-	/**
 	 * bind to any local port on the given host address
 	 * @param localAddress
 	 * @throws SocketException
 	 * @throws UnknownHostException
 	 */
-	public UDPEndPoint(InetAddress localAddress)throws SocketException, UnknownHostException{
+	public UDPEndPoint(InetAddress localAddress)throws IOException {
 		this(localAddress,0);
 	}
 
@@ -109,31 +107,23 @@ public class UDPEndPoint {
 	 * Bind to the given address and port
 	 * @param localAddress
 	 * @param localPort - the port to bind to. If the port is zero, the system will pick an ephemeral port.
-	 * @throws SocketException
-	 * @throws UnknownHostException
+	 * @throws IOException  
 	 */
-	public UDPEndPoint(InetAddress localAddress, int localPort)throws SocketException, UnknownHostException{
-		if(localPort == 0)
-			dgSocket=new DatagramSocket();
-		else
-			dgSocket=new DatagramSocket(localPort);
+	public UDPEndPoint(InetAddress localAddress, int localPort)throws IOException {
+		selector = Selector.open();
+
+		dgChannel = DatagramChannel.open();
+		if(localPort != 0)
+			dgChannel.socket().bind(new InetSocketAddress(localPort));
 		
-		port=dgSocket.getLocalPort();
-		
-		/*
-		if(localAddress==null){
-			dgSocket=new DatagramSocket(localPort, localAddress);
-		}else{
-			dgSocket=new DatagramSocket(localPort);
-		}
-		if(localPort>0)this.port = localPort;
-		else port=dgSocket.getLocalPort();
-*/
 		//set a time out to avoid blocking in doReceive()
-		dgSocket.setSoTimeout(100000);
+		dgChannel.socket().setSoTimeout(100000);
 		//buffer size
-		dgSocket.setReceiveBufferSize(128*1024);
-		dgSocket.setReuseAddress(true);
+		dgChannel.socket().setReceiveBufferSize(128*1024);
+		dgChannel.socket().setReuseAddress(true);
+		
+		//dgChannel.configureBlocking(false);
+		//dgChannel.register(selector, SelectionKey.OP_READ);
 	}
 
 	/**
@@ -142,7 +132,7 @@ public class UDPEndPoint {
 	 * @throws SocketException
 	 * @throws UnknownHostException
 	 */
-	public UDPEndPoint()throws SocketException, UnknownHostException{
+	public UDPEndPoint()throws IOException {
 		this(null,0);
 	}
 
@@ -175,26 +165,25 @@ public class UDPEndPoint {
 		start(false);
 	}
 
-	public void stop(){
+	public void stop() throws IOException {
 		stopped=true;
-		dgSocket.close();
+		//dgSocket.close();
+		dgChannel.close();
 	}
 
 	/**
 	 * @return the port which this client is bound to
 	 */
 	public int getLocalPort() {
-		return this.dgSocket.getLocalPort();
+		//return this.dgSocket.getLocalPort();
+		return dgChannel.socket().getLocalPort();
 	}
 	/**
 	 * @return Gets the local address to which the socket is bound
 	 */
 	public InetAddress getLocalAddress(){
-		return this.dgSocket.getLocalAddress();
-	}
-
-	DatagramSocket getSocket(){
-		return dgSocket;
+		//return this.dgSocket.getLocalAddress();
+		return dgChannel.socket().getLocalAddress();
 	}
 
 	UDTPacket getLastPacket(){
@@ -226,7 +215,8 @@ public class UDPEndPoint {
 	}
 
 
-	final DatagramPacket dp= new DatagramPacket(new byte[DATAGRAM_SIZE],DATAGRAM_SIZE);
+	// final DatagramPacket dp= new DatagramPacket(new byte[DATAGRAM_SIZE],DATAGRAM_SIZE);
+	private final ByteBuffer dpbuffer = ByteBuffer.allocate(DATAGRAM_SIZE);
 
 	/**
 	 * single receive, run in the receiverThread, see {@link #start()}
@@ -241,11 +231,16 @@ public class UDPEndPoint {
 		while(!stopped){
 			try{
 				//will block until a packet is received or timeout has expired
-				dgSocket.receive(dp);
+				dpbuffer.clear();
+				InetSocketAddress from = (InetSocketAddress)dgChannel.receive(dpbuffer);
 
-				Destination peer=new Destination(dp.getAddress(), dp.getPort());
-				int l=dp.getLength();
-				UDTPacket packet=PacketFactory.createPacket(dp.getData(),l);
+				// dgChannel.socket().receive(dp);
+
+				// Destination peer=new Destination(dp.getAddress(), dp.getPort());
+				Destination peer=new Destination(from.getAddress(), from.getPort());
+				int l=dpbuffer.position();
+				dpbuffer.flip();
+				UDTPacket packet=PacketFactory.createPacket(dpbuffer.array(),l);
 				lastPacket=packet;
 
 				long dest=packet.getDestinationID();
@@ -309,16 +304,16 @@ public class UDPEndPoint {
 	protected void doSend(UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
 		DatagramPacket dgp = packet.getSession().getDatagram();
-		dgp.setData(data);
-		dgSocket.send(dgp);
+		ByteBuffer bb = ByteBuffer.wrap(data);
+		dgChannel.send(bb, dgp.getSocketAddress());
 	}
 
 	public String toString(){
-		return  "UDPEndpoint port="+port;
+		return  "UDPEndpoint port="+dgChannel.socket().getLocalPort();
 	}
 
 	public void sendRaw(DatagramPacket p)throws IOException{
-		dgSocket.send(p);
+		dgChannel.socket().send(p);
 	}
 
 }
