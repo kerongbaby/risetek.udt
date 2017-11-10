@@ -48,17 +48,18 @@ import java.nio.channels.Selector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import udt.packets.ConnectionHandshake;
 import udt.packets.Destination;
 import udt.packets.PacketFactory;
 import udt.util.UDTThreadFactory;
+import udt.util.Util;
 
 /**
  * the UDPEndpoint takes care of sending and receiving UDP network packets,
@@ -122,8 +123,8 @@ public class UDPEndPoint {
 		dgChannel.socket().setReceiveBufferSize(128*1024);
 		dgChannel.socket().setReuseAddress(true);
 		
-		//dgChannel.configureBlocking(false);
-		//dgChannel.register(selector, SelectionKey.OP_READ);
+		dgChannel.configureBlocking(false);
+		dgChannel.register(selector, SelectionKey.OP_READ);
 	}
 
 	/**
@@ -229,39 +230,53 @@ public class UDPEndPoint {
 	 */
 	protected void doReceive()throws IOException{
 		while(!stopped){
-			try{
-				//will block until a packet is received or timeout has expired
-				dpbuffer.clear();
-				InetSocketAddress from = (InetSocketAddress)dgChannel.receive(dpbuffer);
-
-				// dgChannel.socket().receive(dp);
-
-				// Destination peer=new Destination(dp.getAddress(), dp.getPort());
-				Destination peer=new Destination(from.getAddress(), from.getPort());
-				int l=dpbuffer.position();
-				dpbuffer.flip();
-				UDTPacket packet=PacketFactory.createPacket(dpbuffer.array(),l);
-				lastPacket=packet;
-
-				long dest=packet.getDestinationID();
-				UDTSession session=sessions.get(dest);
-				if(session!=null){
-					//dispatch to existing session
-					session.received(packet,peer);
-				}
-				else if(packet.isConnectionHandshake()){
-					connectionHandshake((ConnectionHandshake)packet, peer);
-				}
-				else{
-					logger.warning("Unknown session <"+dest+"> requested from <"+peer+"> packet type "+packet.getClass().getName());
-				}
-			}catch(SocketException ex){
-				logger.log(Level.INFO, "SocketException: "+ex.getMessage());
-			}catch(SocketTimeoutException ste){
-				//can safely ignore... we will retry until the endpoint is stopped
-			}catch(Exception ex){
-				logger.log(Level.WARNING, "Got: "+ex.getMessage(),ex);
+			if(0 == selector.select(Util.getSYNTime()) ) {
+				// System.out.print(".");
+				continue;
 			}
+
+			// Get iterator on set of keys with I/O to process
+			Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
+			while (keyIter.hasNext()) {
+				SelectionKey key = keyIter.next(); // Key is bit mask
+
+				// Client socket channel has pending data?
+				if (key.isReadable()) {
+					try{
+						//will block until a packet is received or timeout has expired
+						dpbuffer.clear();
+						InetSocketAddress from = (InetSocketAddress)dgChannel.receive(dpbuffer);
+						Destination peer=new Destination(from.getAddress(), from.getPort());
+						int l=dpbuffer.position();
+						dpbuffer.flip();
+						UDTPacket packet=PacketFactory.createPacket(dpbuffer.array(),l);
+						lastPacket=packet;
+
+						long dest=packet.getDestinationID();
+						UDTSession session=sessions.get(dest);
+						if(session!=null){
+							//dispatch to existing session
+							session.received(packet,peer);
+						}
+						else if(packet.isConnectionHandshake()){
+							connectionHandshake((ConnectionHandshake)packet, peer);
+						}
+						else{
+							logger.warning("Unknown session <"+dest+"> requested from <"+peer+"> packet type "+packet.getClass().getName());
+						}
+					}catch(SocketException ex){
+						logger.log(Level.INFO, "SocketException: "+ex.getMessage());
+					}catch(SocketTimeoutException ste){
+						//can safely ignore... we will retry until the endpoint is stopped
+					}catch(Exception ex){
+						logger.log(Level.WARNING, "Got: "+ex.getMessage(),ex);
+					}
+					// Register write with the selector
+					key.interestOps(SelectionKey.OP_READ);
+				}
+
+			}
+			keyIter.remove();
 		}
 	}
 
@@ -301,11 +316,11 @@ public class UDPEndPoint {
 		session.received(packet,peer);
 	}
 
-	protected void doSend(UDTPacket packet)throws IOException{
+	protected int doSend(UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
 		DatagramPacket dgp = packet.getSession().getDatagram();
 		ByteBuffer bb = ByteBuffer.wrap(data);
-		dgChannel.send(bb, dgp.getSocketAddress());
+		return dgChannel.send(bb, dgp.getSocketAddress());
 	}
 
 	public String toString(){

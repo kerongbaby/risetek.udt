@@ -199,7 +199,8 @@ public abstract class UDTSender {
 				dgSendInterval.end();
 				dgSendTime.begin();
 			}
-			endpoint.doSend(p);
+			if(endpoint.doSend(p) <= 0)
+				System.out.println("send datapacket failed");
 			if(storeStatistics){
 				dgSendTime.end();
 				dgSendInterval.begin();
