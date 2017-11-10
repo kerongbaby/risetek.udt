@@ -55,11 +55,6 @@ public class Util {
 		return System.nanoTime()/1000;
 	}
 	
-	
-	public static final long SYN=10000;
-	
-	public static final double SYN_D=10000.0;
-	
 	/**
 	 * get the SYN time in microseconds. The SYN time is 0.01 seconds = 10000 microseconds
 	 * @return
@@ -72,13 +67,6 @@ public class Util {
 		return 10000.0;
 	}
 	
-	/**
-	 * get the SYN time in seconds. The SYN time is 0.01 seconds = 10000 microseconds
-	 * @return
-	 */
-	public static double getSYNTimeSeconds(){
-		return 0.01;
-	}
 	/**
 	 * read a line terminated by a new line '\n' character
 	 * @param input - the input string to read from 

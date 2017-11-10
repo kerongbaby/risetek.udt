@@ -230,7 +230,7 @@ public class UDPEndPoint {
 	 */
 	protected void doReceive()throws IOException{
 		while(!stopped){
-			if(0 == selector.select(Util.getSYNTime()) ) {
+			if(0 == selector.select(Util.getSYNTime()/100) ) {
 				// System.out.print(".");
 				continue;
 			}
