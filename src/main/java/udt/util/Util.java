@@ -52,7 +52,7 @@ public class Util {
 	 * @return
 	 */
 	public static long getCurrentTime(){
-		return System.nanoTime()/1000;
+		return System.currentTimeMillis()*1000;// .nanoTime()/1000;
 	}
 	
 	/**

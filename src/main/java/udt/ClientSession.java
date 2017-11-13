@@ -202,5 +202,23 @@ public abstract class ClientSession extends UDTSession {
 		return lastPacket;
 	}
 
+	public void shutdown()throws IOException{
+
+		if (isReady()&& active==true) 
+		{
+			Shutdown shutdown = new Shutdown();
+			shutdown.setDestinationID(getDestination().getSocketID());
+			shutdown.setSession(this);
+			try{
+				endPoint.doSend(shutdown);
+			}
+			catch(IOException e)
+			{
+				logger.log(Level.SEVERE,"ERROR: Connection could not be stopped!",e);
+			}
+			getSocket().getReceiver().stop();
+			endPoint.stop();
+		}
+	}
 
 }

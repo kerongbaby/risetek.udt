@@ -63,10 +63,6 @@ public abstract class UDTClient {
 		logger.info("Created client endpoint on port "+clientEndpoint.getLocalPort());
 	}
 
-	public UDTClient(UDPEndPoint endpoint)throws SocketException, UnknownHostException{
-		clientEndpoint=endpoint;
-	}
-
 	/**
 	 * establishes a connection to the given server. 
 	 * Starts the sender thread.
@@ -88,7 +84,7 @@ public abstract class UDTClient {
 			
 		};
 		clientEndpoint.addSession(clientSession.getSocketID(), clientSession);
-		clientEndpoint.start();
+		clientEndpoint.start(false);
 		clientSession.connect();
 /*		//wait for handshake
 		while(!clientSession.isReady()){
@@ -98,57 +94,8 @@ public abstract class UDTClient {
 
 	public abstract void UDTClientConnected(UDTClient client);
 	
-	/**
-	 * sends the given data asynchronously
-	 * 
-	 * @param data - the data to send
-	 * @throws IOException
-	 */
-	public void send(byte[]data)throws IOException{
-		clientSession.getSocket().doWrite(data);
-	}
-
-	/**
-	 * sends the given data and waits for acknowledgement
-	 * @param data - the data to send
-	 * @throws IOException
-	 * @throws InterruptedException if interrupted while waiting for ack
-	 */
-	public void sendBlocking(byte[]data)throws IOException, InterruptedException{
-		clientSession.getSocket().doWriteBlocking(data);
-	}
-
-	public int read(byte[]data)throws IOException, InterruptedException{
-		return clientSession.getSocket().getInputStream().read(data);
-	}
-
-	/**
-	 * flush outstanding data, with the specified maximum waiting time
-	 * @param timeOut - timeout in millis (if smaller than 0, no timeout is used) 
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
-	public void flush()throws IOException, InterruptedException, TimeoutException{
-		clientSession.getSocket().flush();
-	}
-
 	public void shutdown()throws IOException{
-
-		if (clientSession.isReady()&& clientSession.active==true) 
-		{
-			Shutdown shutdown = new Shutdown();
-			shutdown.setDestinationID(clientSession.getDestination().getSocketID());
-			shutdown.setSession(clientSession);
-			try{
-				clientEndpoint.doSend(shutdown);
-			}
-			catch(IOException e)
-			{
-				logger.log(Level.SEVERE,"ERROR: Connection could not be stopped!",e);
-			}
-			clientSession.getSocket().getReceiver().stop();
-			clientEndpoint.stop();
-		}
+		clientSession.shutdown();
 	}
 
 	public UDTInputStream getInputStream()throws IOException{

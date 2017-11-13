@@ -162,10 +162,6 @@ public class UDPEndPoint {
 		logger.info("UDTEndpoint started.");
 	}
 
-	public void start(){
-		start(false);
-	}
-
 	public void stop() throws IOException {
 		stopped=true;
 		//dgSocket.close();
