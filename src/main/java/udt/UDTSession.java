@@ -32,6 +32,7 @@
 
 package udt;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,12 +40,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import udt.packets.Destination;
+import udt.packets.Shutdown;
 import udt.util.SequenceNumber;
 import udt.util.UDTStatistics;
 
 public abstract class UDTSession {
 
 	private static final Logger logger=Logger.getLogger(UDTSession.class.getName());
+	protected final UDPEndPoint endPoint;
 
 	protected int mode;
 	protected volatile boolean active;
@@ -111,7 +114,8 @@ public abstract class UDTSession {
 	
 	private final static AtomicLong nextSocketID=new AtomicLong(20+new Random().nextInt(5000));
 	
-	public UDTSession(String description, Destination destination){
+	public UDTSession(String description, Destination destination, UDPEndPoint endPoint){
+		this.endPoint = endPoint;
 		statistics=new UDTStatistics(description);
 		mySocketID=nextSocketID.incrementAndGet();
 		this.destination=destination;
@@ -226,6 +230,25 @@ public abstract class UDTSession {
 		return dgPacket;
 	}
 	
+	public void shutdown()throws IOException{
+
+		if (isReady()&& active==true) 
+		{
+			Shutdown shutdown = new Shutdown();
+			shutdown.setDestinationID(getDestination().getSocketID());
+			shutdown.setSession(this);
+			try{
+				endPoint.doSend(shutdown);
+			}
+			catch(IOException e)
+			{
+				logger.log(Level.SEVERE,"ERROR: Connection could not be stopped!",e);
+			}
+			getSocket().getReceiver().stop();
+			endPoint.stop();
+		}
+	}
+
 	public String toString(){
 		StringBuilder sb=new StringBuilder();
 		sb.append(super.toString());

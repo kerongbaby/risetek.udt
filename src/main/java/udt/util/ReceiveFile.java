@@ -43,6 +43,7 @@ import udt.UDTClient;
 import udt.UDTInputStream;
 import udt.UDTOutputStream;
 import udt.UDTReceiver;
+import udt.UDTSession;
 
 /**
  * helper class for receiving a single file via UDT
@@ -59,7 +60,7 @@ public class ReceiveFile extends Application{
 	private final String remoteFile;
 	private final String localFile;
 	private final NumberFormat format;
-	private UDTClient myClient;
+	private UDTSession mySession;
 	
 	public ReceiveFile(String serverHost, int serverPort, String remoteFile, String localFile){
 		this.serverHost=serverHost;
@@ -87,9 +88,9 @@ public class ReceiveFile extends Application{
 			
 			client.connect(serverHost, serverPort);
 			*/
-			UDTClient client = myClient;
-			UDTInputStream in=client.getInputStream();
-			UDTOutputStream out=client.getOutputStream();
+			UDTSession session = mySession;
+			UDTInputStream in=session.getSocket().getInputStream();
+			UDTOutputStream out=session.getSocket().getOutputStream();
 			
 			System.out.println("[ReceiveFile] Requesting file "+remoteFile);
 			byte[]fName=remoteFile.getBytes();
@@ -134,9 +135,9 @@ public class ReceiveFile extends Application{
 				System.out.println("[ReceiveFile] Rate: "+format.format(rate)+" MBytes/sec. "
 						+format.format(8*rate)+" MBit/sec.");
 			
-				client.shutdown();
+				session.shutdown();
 				
-				if(verbose)System.out.println(client.getStatistics());
+				if(verbose)System.out.println(session.getStatistics());
 				
 			}finally{
 				fos.close();
@@ -170,8 +171,8 @@ public class ReceiveFile extends Application{
 		InetAddress myHost=localIP!=null?InetAddress.getByName(localIP):InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,(localPort!=-1)?localPort:0){
 			@Override
-			public void UDTClientConnected(UDTClient client) {
-				rf.myClient = client;
+			public void UDTClientConnected(UDTSession session) {
+				rf.mySession = session;
 				rf.run();
 			}
 		};

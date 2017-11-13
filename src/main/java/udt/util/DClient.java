@@ -3,9 +3,11 @@ package udt.util;
 import java.net.InetAddress;
 import java.text.NumberFormat;
 
+import udt.ClientSession;
 import udt.UDTClient;
 import udt.UDTInputStream;
 import udt.UDTReceiver;
+import udt.UDTSession;
 
 /**
  * 请求并接收DServer发送数据的客户端程序，用于调试和度量
@@ -13,7 +15,7 @@ import udt.UDTReceiver;
 public class DClient extends Application{
 
 	private final NumberFormat format;
-	private UDTClient myClient;
+	private UDTSession mySession;
 	
 	public DClient(){
 		format=NumberFormat.getNumberInstance();
@@ -23,11 +25,10 @@ public class DClient extends Application{
 	public void run(){
 		configure();
 		verbose=false;//true;
+		System.out.println("DServer connected ....");
 		try{
-			UDTClient client = myClient;
-			UDTInputStream in=client.getInputStream();
-			
-			System.out.println("Requesting DServer....");
+			UDTSession session = mySession;
+			UDTInputStream in=session.getSocket().getInputStream();
 			long start = System.currentTimeMillis();
 		    //and read the file data
 			
@@ -42,12 +43,12 @@ public class DClient extends Application{
 			}
 			long end = System.currentTimeMillis();
 			double rate=1000.0*read/1024/1024/(end-start);
-			System.out.println("[ReceiveFile] Rate: "+format.format(rate)+" MBytes/sec. "
+			System.out.println("Receive Rate: "+format.format(rate)+" MBytes/sec. "
 					+format.format(8*rate)+" MBit/sec.");
 		
-			client.shutdown();
+			session.shutdown();
 			
-			System.out.println(client.getStatistics());
+			System.out.println(session.getStatistics());
 		}catch(Exception ex){
 			throw new RuntimeException(ex);
 		}
@@ -70,8 +71,8 @@ public class DClient extends Application{
 		InetAddress myHost=InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,0) {
 			@Override
-			public void UDTClientConnected(UDTClient client) {
-				rf.myClient = client;
+			public void UDTClientConnected(UDTSession session) {
+				rf.mySession = session;
 				rf.run();
 			}
 		};

@@ -79,7 +79,7 @@ public abstract class UDTClient {
 			@Override
 			public void connected() {
 				logger.info("The UDTClient is connected");
-				UDTClientConnected(UDTClient.this);
+				UDTClientConnected(this);
 			}
 			
 		};
@@ -92,7 +92,7 @@ public abstract class UDTClient {
 		}
 */	}
 
-	public abstract void UDTClientConnected(UDTClient client);
+	public abstract void UDTClientConnected(UDTSession session);
 	
 	public void shutdown()throws IOException{
 		clientSession.shutdown();

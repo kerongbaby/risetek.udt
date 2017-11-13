@@ -51,14 +51,11 @@ public class ServerSession extends UDTSession {
 
 	private static final Logger logger=Logger.getLogger(ServerSession.class.getName());
 
-	private final UDPEndPoint endPoint;
-
 	//last received packet (for testing purposes)
 	private UDTPacket lastPacket;
 
 	public ServerSession(Destination peer, UDPEndPoint endPoint)throws SocketException,UnknownHostException{
-		super("ServerSession localPort="+endPoint.getLocalPort()+" peer="+peer.getAddress()+":"+peer.getPort(),peer);
-		this.endPoint=endPoint;
+		super("ServerSession localPort="+endPoint.getLocalPort()+" peer="+peer.getAddress()+":"+peer.getPort(),peer, endPoint);
 		logger.info("Created "+toString()+" talking to "+peer.getAddress()+":"+peer.getPort());
 	}
 
