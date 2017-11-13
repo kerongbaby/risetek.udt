@@ -118,10 +118,10 @@ public abstract class UDTSender {
 	
 	private final int chunksize;
 	
-	public UDTSender(UDTSession session,UDPEndPoint endpoint){
+	public UDTSender(UDTSession session){
 		if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");
-		this.endpoint= endpoint;
 		this.session=session;
+		this.endpoint= session.getEndPoint();
 		statistics=session.getStatistics();
 		senderLossList=new SenderLossList();
 		sendBuffer=new ConcurrentHashMap<Long, byte[]>(session.getFlowWindowSize(),0.75f,2); 

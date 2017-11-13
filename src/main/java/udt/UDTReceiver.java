@@ -159,9 +159,9 @@ public class UDTReceiver {
 	 * create a receiver with a valid {@link UDTSession}
 	 * @param session
 	 */
-	public UDTReceiver(UDTSession session,UDPEndPoint endpoint){
-		this.endpoint = endpoint;
+	public UDTReceiver(UDTSession session){
 		this.session=session;
+		this.endpoint = session.getEndPoint();
 		this.sessionUpSince=System.currentTimeMillis();
 		this.statistics=session.getStatistics();
 		if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");

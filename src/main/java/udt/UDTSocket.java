@@ -45,9 +45,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class UDTSocket {
 
-	//endpoint
-	private final UDPEndPoint endpoint;
-
 	private volatile boolean active;
 
 	//processing received data
@@ -64,11 +61,10 @@ public class UDTSocket {
 	 * @param endpoint
 	 * @throws SocketException,UnknownHostException
 	 */
-	public UDTSocket(UDPEndPoint endpoint, UDTSession session)throws SocketException,UnknownHostException{
-		this.endpoint=endpoint;
+	public UDTSocket(UDTSession session)throws SocketException,UnknownHostException{
 		this.session=session;
-		this.receiver=new UDTReceiver(session,endpoint);
-		this.sender=new UDTSender(session,endpoint) {
+		this.receiver=new UDTReceiver(session);
+		this.sender=new UDTSender(session) {
 
 			@Override
 			public void UDTSenderStoped() {
@@ -100,10 +96,6 @@ public class UDTSocket {
 
 	public boolean isActive() {
 		return active;
-	}
-
-	public UDPEndPoint getEndpoint() {
-		return endpoint;
 	}
 
 	/**

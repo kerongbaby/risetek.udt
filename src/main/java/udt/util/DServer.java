@@ -42,6 +42,7 @@ public class DServer extends Application{
 			UDTServerSocket server=new UDTServerSocket(myHost,serverPort);
 			while(true){
 				UDTSocket socket=server.accept();
+				System.out.println("session accepted");
 				threadPool.execute(new RequestRunner(socket));
 			}
 		}catch(Exception ex){

@@ -50,17 +50,14 @@ public abstract class UDTClient {
 	private final UDPEndPoint clientEndpoint;
 	private ClientSession clientSession;
 
-
 	public UDTClient(InetAddress address, int localport)throws IOException {
-		//create endpoint
 		clientEndpoint=new UDPEndPoint(address,localport);
-		logger.info("Created client endpoint on port "+localport);
+		logger.info("Created client endpoint on port "+ clientEndpoint.getLocalPort());
+		clientEndpoint.start(false);
 	}
 
 	public UDTClient(InetAddress address)throws IOException {
-		//create endpoint
-		clientEndpoint=new UDPEndPoint(address, 0);
-		logger.info("Created client endpoint on port "+clientEndpoint.getLocalPort());
+		this(address, 0);
 	}
 
 	/**
@@ -84,13 +81,8 @@ public abstract class UDTClient {
 			
 		};
 		clientEndpoint.addSession(clientSession.getSocketID(), clientSession);
-		clientEndpoint.start(false);
 		clientSession.connect();
-/*		//wait for handshake
-		while(!clientSession.isReady()){
-			Thread.sleep(50);
-		}
-*/	}
+	}
 
 	public abstract void UDTClientConnected(UDTSession session);
 	
@@ -106,12 +98,7 @@ public abstract class UDTClient {
 		return clientSession.getSocket().getOutputStream();
 	}
 
-	public UDPEndPoint getEndpoint()throws IOException{
-		return clientEndpoint;
-	}
-
 	public UDTStatistics getStatistics(){
 		return clientSession.getStatistics();
 	}
-
 }
