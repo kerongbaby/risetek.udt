@@ -39,7 +39,7 @@ public class DClient extends Application{
 				c=in.read(buf);
 				if(c<0)break;
 				read+=c;
-				//System.out.println("writing <"+c+"> bytes total <"+read+"> bytes");
+				// System.out.println("writing <"+c+"> bytes total <"+read+"> bytes");
 			}
 			long end = System.currentTimeMillis();
 			double rate=1000.0*read/1024/1024/(end-start);
@@ -73,11 +73,19 @@ public class DClient extends Application{
 			@Override
 			public void UDTClientConnected(UDTSession session) {
 				rf.mySession = session;
-				rf.run();
+				// rf.run();
+				synchronized(rf) {
+					System.out.println("notify");
+					rf.notify();
+				}
 			}
 		};
 		
 		client.connect(serverHost, serverPort);
+		synchronized(rf) {
+			rf.wait();
+		}
+		rf.run();
 	}
 	
 	public static void usage(){

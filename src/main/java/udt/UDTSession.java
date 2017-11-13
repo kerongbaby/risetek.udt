@@ -48,11 +48,14 @@ import udt.util.UDTStatistics;
 public abstract class UDTSession {
 
 	private static final Logger logger=Logger.getLogger(UDTSession.class.getName());
+	public abstract void connected();
+	
+
 	protected final UDPEndPoint endPoint;
 
 	protected int mode;
 	protected volatile boolean active;
-	private volatile int state=start;
+	protected volatile int state=start;
 	protected volatile UDTPacket lastPacket;
 	
 	//state constants	
@@ -158,10 +161,7 @@ public abstract class UDTSession {
 		this.socket = socket;
 	}
 
-	public void setState(int state) {
-		logger.info(toString()+" connection state CHANGED to <"+state+">");
-		this.state = state;
-	}
+	public abstract void setState(int state);
 	
 	public boolean isReady(){
 		return state==ready;
@@ -364,6 +364,7 @@ public abstract class UDTSession {
 		endPoint.doSend(finalConnectionHandshake);
 	}
 
+	// Client side handler
 	protected void handleConnectionHandshake(ConnectionHandshake hs, Destination peer){
 		if (getState()==handshaking) {
 			//logger.info("Received initial handshake response from "+peer+"\n"+hs);
@@ -391,6 +392,9 @@ public abstract class UDTSession {
 				//TODO validate parameters sent by peer
 				setState(ready);
 				socket=new UDTSocket(this);
+				cc.init();
+				Thread.sleep(1000);
+				connected();
 			}catch(Exception ex){
 				logger.log(Level.WARNING,"Error creating socket",ex);
 				setState(invalid);
@@ -399,6 +403,7 @@ public abstract class UDTSession {
 	}
 
 	/**
+	 * Server side handler
 	 * reply to a connection handshake message
 	 * @param connectionHandshake
 	 */

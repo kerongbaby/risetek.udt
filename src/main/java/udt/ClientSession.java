@@ -34,6 +34,8 @@ package udt;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,8 +50,6 @@ import udt.util.SequenceNumber;
  */
 public abstract class ClientSession extends UDTSession {
 
-	public abstract void connected();
-	
 	private static final Logger logger=Logger.getLogger(ClientSession.class.getName());
 
 	public ClientSession(UDPEndPoint endPoint, Destination dest)throws SocketException{
@@ -57,34 +57,60 @@ public abstract class ClientSession extends UDTSession {
 		logger.info("Created "+toString());
 	}
 
+	public void setState(int state) {
+			logger.info(toString()+" connection state CHANGED to <"+state+">");
+			this.state = state;
+			if(state == (handshaking+1)) {
+				try {
+					System.out.println("sendSecondHandshake");
+					sendSecondHandshake();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+	}
 	/**
 	 * send connection handshake until a reply from server is received
 	 
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-
+	Timer timer = new Timer();
 	public void connect() throws InterruptedException,IOException{
 		int n=0;
 		while(getState()!=ready){
 			if(getState()==invalid)throw new IOException("Can't connect!");
-			if(getState()<=handshaking){
-				setState(handshaking);
-				sendInitialHandShake();
-			}
-			else if(getState()==handshaking+1){
-				sendSecondHandshake();
-			}
+			timer.scheduleAtFixedRate(new TimerTask() {
+
+				@Override
+				public void run() {
+					System.out.println("timer connect");
+
+					if( getState() == ready ) {
+						System.out.println("session connected, stop timer");
+						timer.cancel();
+					}
+
+
+					if(getState()<=handshaking){
+						setState(handshaking);
+						try {
+							sendInitialHandShake();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				
+				}}, 0, 100);
 			
-			if(getState()==invalid)throw new IOException("Can't connect!");
 			if(n++ > 1000)throw new IOException("Could not connect to server within the timeout.");
 			Thread.sleep(50);
 		}
 		// ready状态会涉及到UDTSocket的构造，如果不延迟一阵，后期的获取inputStream会出现问题，这里说明顺序是有提升空间的。
-		Thread.sleep(1000);
-		cc.init();
-		logger.info("Connected, "+n+" handshake packets sent");		
-		connected();
+		// Thread.sleep(1000);
+		// logger.info("Connected, "+n+" handshake packets sent");
+		// connected();
 	}
 
 	@Override

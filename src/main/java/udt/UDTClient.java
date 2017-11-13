@@ -34,26 +34,18 @@ package udt;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import udt.packets.Destination;
-import udt.packets.Shutdown;
-import udt.util.UDTStatistics;
 
-public abstract class UDTClient {
-
+public abstract class UDTClient extends UDPEndPoint {
 	private static final Logger logger=Logger.getLogger(UDTClient.class.getName());
-	private final UDPEndPoint clientEndpoint;
-	private ClientSession clientSession;
 
 	public UDTClient(InetAddress address, int localport)throws IOException {
-		clientEndpoint=new UDPEndPoint(address,localport);
-		logger.info("Created client endpoint on port "+ clientEndpoint.getLocalPort());
-		clientEndpoint.start(false);
+		super(address,localport);
+		logger.info("Created client endpoint on port "+ getLocalPort());
+		start(false);
 	}
 
 	public UDTClient(InetAddress address)throws IOException {
@@ -71,7 +63,7 @@ public abstract class UDTClient {
 		InetAddress address=InetAddress.getByName(host);
 		Destination destination=new Destination(address,port);
 		//create client session...
-		clientSession=new ClientSession(clientEndpoint,destination) {
+		ClientSession clientSession=new ClientSession(this,destination) {
 
 			@Override
 			public void connected() {
@@ -80,25 +72,9 @@ public abstract class UDTClient {
 			}
 			
 		};
-		clientEndpoint.addSession(clientSession.getSocketID(), clientSession);
+		addSession(clientSession.getSocketID(), clientSession);
 		clientSession.connect();
 	}
 
 	public abstract void UDTClientConnected(UDTSession session);
-	
-	public void shutdown()throws IOException{
-		clientSession.shutdown();
-	}
-
-	public UDTInputStream getInputStream()throws IOException{
-		return clientSession.getSocket().getInputStream();
-	}
-
-	public UDTOutputStream getOutputStream()throws IOException{
-		return clientSession.getSocket().getOutputStream();
-	}
-
-	public UDTStatistics getStatistics(){
-		return clientSession.getStatistics();
-	}
 }

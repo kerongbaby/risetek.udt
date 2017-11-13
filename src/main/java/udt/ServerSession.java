@@ -56,6 +56,11 @@ public class ServerSession extends UDTSession {
 		logger.info("Created "+toString()+" talking to "+peer.getAddress()+":"+peer.getPort());
 	}
 
+	public void setState(int state) {
+		logger.info(toString()+" connection state CHANGED to <"+state+">");
+		this.state = state;
+	}
+	
 	@Override
 	public void received(UDTPacket packet, Destination peer){
 		lastPacket=packet;
@@ -98,6 +103,11 @@ public class ServerSession extends UDTSession {
 			}
 			return;
 		}
+	}
+
+	@Override
+	public void connected() {
+		// This is for ClientSession , so do nothing.
 	}
 }
 
