@@ -53,7 +53,7 @@ public abstract class UDTClient extends UDPEndPoint {
 		this(address, 0);
 	}
 
-	public abstract void onDataPacketReceived(UDTSession session, DataPacket dp);
+	public abstract boolean onDataPacketReceived(UDTSession session, DataPacket dp);
 	/**
 	 * establishes a connection to the given server. 
 	 * Starts the sender thread.
@@ -74,8 +74,8 @@ public abstract class UDTClient extends UDPEndPoint {
 			}
 
 			@Override
-			public void onDataPacketReceived(DataPacket dp) {
-				UDTClient.this.onDataPacketReceived(this, dp);
+			public boolean onDataPacketReceived(DataPacket dp) {
+				return UDTClient.this.onDataPacketReceived(this, dp);
 			}
 			
 		};

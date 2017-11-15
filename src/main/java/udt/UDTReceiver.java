@@ -390,14 +390,20 @@ public class UDTReceiver {
 //				return;
 //			}
 //		//}
+		/*
 		boolean OK=session.getSocket().getInputStream().haveNewData(currentSequenceNumber,dp.getData());
 		if(!OK){
 			//need to drop packet...
 			System.out.println("drop packet");
 			return;
 		}
+		*/
 		
-		session.onDataPacketReceived(dp);
+		if(!session.onDataPacketReceived(dp)) {
+			//need to drop packet...
+			System.out.println("drop packet");
+			return;
+		}
 		
 		long currentDataPacketArrivalTime = Util.getCurrentTime();
 

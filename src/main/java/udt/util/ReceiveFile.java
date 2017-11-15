@@ -178,9 +178,9 @@ public class ReceiveFile extends Application{
 			}
 
 			@Override
-			public void onDataPacketReceived(UDTSession session, DataPacket dp) {
+			public boolean onDataPacketReceived(UDTSession session, DataPacket dp) {
 				System.out.println("Recevie file chunk.");
-				
+				return true;
 			}
 		};
 		

@@ -112,8 +112,8 @@ public class ServerSession extends UDTSession {
 	}
 
 	@Override
-	public void onDataPacketReceived(DataPacket dp) {
-		
+	public boolean onDataPacketReceived(DataPacket dp) {
+		return true;
 	}
 }
 

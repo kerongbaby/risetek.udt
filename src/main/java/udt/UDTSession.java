@@ -43,6 +43,7 @@ import udt.packets.ConnectionHandshake;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
 import udt.packets.Shutdown;
+import udt.util.ReceiveBuffer;
 import udt.util.SequenceNumber;
 import udt.util.UDTStatistics;
 
@@ -117,6 +118,7 @@ public abstract class UDTSession {
 	protected final long mySocketID;
 	
 	private final static AtomicLong nextSocketID=new AtomicLong(20+new Random().nextInt(5000));
+	public final ReceiveBuffer receiveBuffer;
 	
 	public UDTSession(String description, Destination destination, UDPEndPoint endPoint){
 		this.endPoint = endPoint;
@@ -135,11 +137,15 @@ public abstract class UDTSession {
 		}
 		cc=(CongestionControl)ccObject;
 		logger.info("Using "+cc.getClass().getName());
+		
+		int capacity= 2 * getFlowWindowSize();
+		//long initialSequenceNum = getInitialSequenceNumber();
+		receiveBuffer=new ReceiveBuffer(capacity,0);
 	}
 	
 	
 	public abstract void received(UDTPacket packet, Destination peer);
-	public abstract void onDataPacketReceived(DataPacket dp);	
+	public abstract boolean onDataPacketReceived(DataPacket dp);	
 	
 	public UDTSocket getSocket() {
 		return socket;

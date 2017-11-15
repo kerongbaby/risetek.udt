@@ -1,11 +1,13 @@
 package udt.util;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.text.NumberFormat;
 
 import udt.ClientSession;
 import udt.UDTClient;
 import udt.UDTInputStream;
+import udt.UDTInputStream.AppData;
 import udt.UDTReceiver;
 import udt.UDTSession;
 import udt.packets.DataPacket;
@@ -71,31 +73,59 @@ public class DClient extends Application{
 		UDTReceiver.connectionExpiryDisabled=true;
 		InetAddress myHost=InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,0) {
+			long time_passed;
 			@Override
 			public void UDTClientConnected(UDTSession session) {
 				rf.mySession = session;
 				System.out.println("getInitialSequenceNumber:" + session.getInitialSequenceNumber());
-//				int capacity=2 * session.getFlowWindowSize();
-//				long initialSequenceNum=session.getInitialSequenceNumber();
-				// rf.run();
-				synchronized(rf) {
-					System.out.println("notify");
-					rf.notify();
-				}
+				time_passed = System.currentTimeMillis();
 			}
 
 			private int count = 0;
 			@Override
-			public void onDataPacketReceived(UDTSession session, DataPacket dp) {
-				System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
+			public boolean onDataPacketReceived(UDTSession session, DataPacket dp) {
+				// System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
+				if(!session.receiveBuffer.offer(new AppData((dp.getPacketSequenceNumber()-session.getInitialSequenceNumber()), dp.getData()))) {
+					System.out.println("data packet overload");
+					return false;
+				}
+				
+				boolean haveone = false;
+				for(;;) {
+					AppData data;
+					if((data = session.receiveBuffer.poll()) == null)
+						break;
+					haveone = true;
+					// System.out.print(" " +  data.getSequenceNumber());
+					
+					if(1023 == data.getSequenceNumber()) {
+						try {
+							session.shutdown();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
+						time_passed = System.currentTimeMillis() - time_passed;
+						double rate=1000.0 / time_passed;
+						System.out.println(session.getStatistics());
+						System.out.println("Receive Rate: "+ rate+ " MBytes/sec. ");
+						
+						synchronized(this) {
+							notify();
+						}
+					}
+				}
+				// if(haveone)	System.out.println();
+				return true;
 			}
 		};
 		
 		client.connect(serverHost, serverPort);
-		synchronized(rf) {
-			rf.wait();
+		
+		synchronized(client) {
+			client.wait();
 		}
-		rf.run();
+		System.out.println("bye my world!");
 	}
 	
 	public static void usage(){
