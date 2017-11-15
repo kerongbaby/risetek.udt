@@ -70,7 +70,7 @@ public class UDTServerSocket {
 	 * for the new connection
 	 * @return
 	 */
-	public synchronized UDTSocket accept()throws InterruptedException{
+	public synchronized UDTSession accept()throws InterruptedException{
 		if(!started){
 			endpoint.start(true);
 			started=true;
@@ -82,7 +82,7 @@ public class UDTServerSocket {
 				while(!session.isReady() || session.getSocket()==null){
 					Thread.sleep(100);
 				}
-				return session.getSocket();
+				return session;
 			}
 		}
 		throw new InterruptedException();

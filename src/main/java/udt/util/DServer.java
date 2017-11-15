@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import udt.UDTOutputStream;
 import udt.UDTReceiver;
 import udt.UDTServerSocket;
-import udt.UDTSocket;
+import udt.UDTSession;
 
 
 /**
@@ -41,9 +41,9 @@ public class DServer extends Application{
 			InetAddress myHost=localIP!=null?InetAddress.getByName(localIP):InetAddress.getLocalHost();
 			UDTServerSocket server=new UDTServerSocket(myHost,serverPort);
 			while(true){
-				UDTSocket socket=server.accept();
+				UDTSession session=server.accept();
 				System.out.println("session accepted");
-				threadPool.execute(new RequestRunner(socket));
+				threadPool.execute(new RequestRunner(session));
 			}
 		}catch(Exception ex){
 			throw new RuntimeException(ex);
@@ -65,36 +65,36 @@ public class DServer extends Application{
 
 		private final static Logger logger=Logger.getLogger(RequestRunner.class.getName());
 
-		private final UDTSocket socket;
+		private final UDTSession session;
 
 		private final NumberFormat format=NumberFormat.getNumberInstance();
 
-		public RequestRunner(UDTSocket socket){
-			this.socket=socket;
+		public RequestRunner(UDTSession session){
+			this.session=session;
 			format.setMaximumFractionDigits(3);
 		}
 
 		public void run(){
 			try{
-				logger.info("Handling request from "+socket.getSession().getDestination());
+				logger.info("Handling request from "+session.getDestination());
 				System.out.println("begin sending data.");
-				UDTOutputStream out=socket.getOutputStream();
+				UDTOutputStream out=session.getSocket().getOutputStream();
 				
 				try{
 					long start=System.currentTimeMillis();
 					//and send the file
-					sendDatas(out);
+					sendDatas(session, out);
 
 					System.out.println(" Finished sending data.");
 					long end=System.currentTimeMillis();
-					System.out.println(socket.getSession().getStatistics().toString());
+					System.out.println(session.getStatistics().toString());
 					double rate=1000.0*numberPackets*1024/1024/1024/(end-start);
 					System.out.println("[SendFile] Rate: "+format.format(rate)+" MBytes/sec. "+format.format(8*rate)+" MBit/sec.");
 				}finally{
-					socket.getSender().stop();
-					socket.close();
+					session.getSocket().getSender().stop();
+					session.getSocket().close();
 				}
-				logger.info("Finished request from "+socket.getSession().getDestination());
+				logger.info("Finished request from "+session.getDestination());
 			}catch(Exception ex){
 				ex.printStackTrace();
 				throw new RuntimeException(ex);
@@ -102,12 +102,13 @@ public class DServer extends Application{
 		}
 	}
 
-	private static void sendDatas(OutputStream os)throws Exception{
+	private static void sendDatas(UDTSession session, OutputStream os)throws Exception{
 		byte[]buf=new byte[1024];
 		for(int looper = 0; looper < numberPackets; looper++) {
 			System.out.print(" " + looper);
 			os.write(buf, 0, 1024);
 		}
-		os.flush();
+		session.getSocket().flush();
+//		os.flush();
 	}	
 }

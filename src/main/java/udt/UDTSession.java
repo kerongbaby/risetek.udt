@@ -146,6 +146,7 @@ public abstract class UDTSession {
 	
 	public abstract void received(UDTPacket packet, Destination peer);
 	public abstract boolean onDataPacketReceived(DataPacket dp);	
+	public abstract void requestSend();
 	
 	public UDTSocket getSocket() {
 		return socket;

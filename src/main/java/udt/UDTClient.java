@@ -77,6 +77,11 @@ public abstract class UDTClient extends UDPEndPoint {
 			public boolean onDataPacketReceived(DataPacket dp) {
 				return UDTClient.this.onDataPacketReceived(this, dp);
 			}
+
+			@Override
+			public void requestSend() {
+				// do nothing
+			}
 			
 		};
 		addSession(clientSession.getSocketID(), clientSession);

@@ -115,5 +115,10 @@ public class ServerSession extends UDTSession {
 	public boolean onDataPacketReceived(DataPacket dp) {
 		return true;
 	}
+
+	@Override
+	public void requestSend() {
+		System.out.println("need data to send");
+	}
 }
 

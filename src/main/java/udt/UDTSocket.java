@@ -53,7 +53,6 @@ public class UDTSocket {
 
 	private final UDTSession session;
 
-	private UDTInputStream inputStream;
 	private UDTOutputStream outputStream;
 	/**
 	 * @param host
@@ -91,12 +90,7 @@ public class UDTSocket {
 	 * @return
 	 */
 	public synchronized UDTInputStream getInputStream()throws IOException{
-		if(inputStream==null){
-			int capacity=2 * session.getFlowWindowSize();
-			long initialSequenceNum=session.getInitialSequenceNumber();
-			inputStream=new UDTInputStream(capacity, initialSequenceNum);
-		}
-		return inputStream;
+		return null;
 	}
 
 	/**
@@ -166,7 +160,7 @@ public class UDTSocket {
 	 * will block until the outstanding packets have really been sent out
 	 * and acknowledged
 	 */
-	protected void flush() throws InterruptedException{
+	public void flush() throws InterruptedException{
 		if(!active)return;
 		final long seqNo=sender.getCurrentSequenceNumber();
 		if(seqNo<0)throw new IllegalStateException();
@@ -195,7 +189,6 @@ public class UDTSocket {
 	 * @throws IOException
 	 */
 	public void close()throws IOException{
-		if(inputStream!=null)inputStream.close();
 		if(outputStream!=null)outputStream.close();
 		active=false;
 	}

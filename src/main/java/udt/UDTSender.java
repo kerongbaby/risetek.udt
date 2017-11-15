@@ -392,6 +392,7 @@ public abstract class UDTSender {
 						largestSentSequenceNumber=dp.getPacketSequenceNumber();
 					}
 					else{
+						session.requestSend();
 						statistics.incNumberOfMissingDataEvents();
 					}
 				}else{

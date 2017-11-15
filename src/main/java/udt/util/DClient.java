@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.text.NumberFormat;
 
-import udt.ClientSession;
 import udt.UDTClient;
-import udt.UDTInputStream;
 import udt.UDTInputStream.AppData;
 import udt.UDTReceiver;
 import udt.UDTSession;
@@ -16,45 +14,8 @@ import udt.packets.DataPacket;
  * 请求并接收DServer发送数据的客户端程序，用于调试和度量
  */
 public class DClient extends Application{
-
-	private final NumberFormat format;
-	private UDTSession mySession;
-	
-	public DClient(){
-		format=NumberFormat.getNumberInstance();
-		format.setMaximumFractionDigits(3);
-	}
-	
 	public void run(){
-		configure();
-		verbose=false;//true;
-		System.out.println("DServer connected ....");
-		try{
-			UDTSession session = mySession;
-			UDTInputStream in=session.getSocket().getInputStream();
-			long start = System.currentTimeMillis();
-		    //and read the file data
-			
-			byte[]buf=new byte[65536];
-			int c;
-			long read=0;
-			while(read < 1024*1024){
-				c=in.read(buf);
-				if(c<0)break;
-				read+=c;
-				// System.out.println("writing <"+c+"> bytes total <"+read+"> bytes");
-			}
-			long end = System.currentTimeMillis();
-			double rate=1000.0*read/1024/1024/(end-start);
-			System.out.println("Receive Rate: "+format.format(rate)+" MBytes/sec. "
-					+format.format(8*rate)+" MBit/sec.");
-		
-			session.shutdown();
-			
-			System.out.println(session.getStatistics());
-		}catch(Exception ex){
-			throw new RuntimeException(ex);
-		}
+		System.out.println("do nothing");
 	}
 	
 	public static void main(String[] fullArgs) throws Exception{
@@ -69,14 +30,12 @@ public class DClient extends Application{
 			System.exit(1);
 		}
 		
-		DClient rf=new DClient();
 		UDTReceiver.connectionExpiryDisabled=true;
 		InetAddress myHost=InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,0) {
 			long time_passed;
 			@Override
 			public void UDTClientConnected(UDTSession session) {
-				rf.mySession = session;
 				System.out.println("getInitialSequenceNumber:" + session.getInitialSequenceNumber());
 				time_passed = System.currentTimeMillis();
 			}
@@ -105,10 +64,12 @@ public class DClient extends Application{
 							e.printStackTrace();
 						}
 
+						NumberFormat format = NumberFormat.getNumberInstance();
+						format.setMaximumFractionDigits(3);
 						time_passed = System.currentTimeMillis() - time_passed;
 						double rate=1000.0 / time_passed;
 						System.out.println(session.getStatistics());
-						System.out.println("Receive Rate: "+ rate+ " MBytes/sec. ");
+						System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 						
 						synchronized(this) {
 							notify();
