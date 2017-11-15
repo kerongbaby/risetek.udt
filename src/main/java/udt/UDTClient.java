@@ -37,6 +37,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Logger;
 
+import udt.packets.DataPacket;
 import udt.packets.Destination;
 
 public abstract class UDTClient extends UDPEndPoint {
@@ -52,6 +53,7 @@ public abstract class UDTClient extends UDPEndPoint {
 		this(address, 0);
 	}
 
+	public abstract void onDataPacketReceived(UDTSession session, DataPacket dp);
 	/**
 	 * establishes a connection to the given server. 
 	 * Starts the sender thread.
@@ -69,6 +71,11 @@ public abstract class UDTClient extends UDPEndPoint {
 			public void connected() {
 				logger.info("The UDTClient is connected");
 				UDTClientConnected(this);
+			}
+
+			@Override
+			public void onDataPacketReceived(DataPacket dp) {
+				UDTClient.this.onDataPacketReceived(this, dp);
 			}
 			
 		};

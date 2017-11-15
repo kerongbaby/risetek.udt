@@ -78,20 +78,8 @@ public class UDTSocket {
 		return receiver;
 	}
 
-	public void setReceiver(UDTReceiver receiver) {
-		this.receiver = receiver;
-	}
-
 	public UDTSender getSender() {
 		return sender;
-	}
-
-	public void setSender(UDTSender sender) {
-		this.sender = sender;
-	}
-
-	public void setActive(boolean active) {
-		this.active = active;
 	}
 
 	public boolean isActive() {
@@ -104,7 +92,9 @@ public class UDTSocket {
 	 */
 	public synchronized UDTInputStream getInputStream()throws IOException{
 		if(inputStream==null){
-			inputStream=new UDTInputStream(this);
+			int capacity=2 * session.getFlowWindowSize();
+			long initialSequenceNum=session.getInitialSequenceNumber();
+			inputStream=new UDTInputStream(capacity, initialSequenceNum);
 		}
 		return inputStream;
 	}
@@ -183,6 +173,7 @@ public class UDTSocket {
 		while(!sender.isSentOut(seqNo)){
 			Thread.sleep(5);
 		}
+		System.out.println("flash seqNo:" + seqNo);
 		if(seqNo>-1){
 			//wait until data has been sent out and acknowledged
 			while(active && !sender.haveAcknowledgementFor(seqNo)){

@@ -47,10 +47,6 @@ import udt.util.ReceiveBuffer;
  * 
  */
 public class UDTInputStream extends InputStream {
-
-	//the socket owning this inputstream
-	private final UDTSocket socket;
-
 	private final ReceiveBuffer receiveBuffer;
 
 	//set to 'false' by the receiver when it gets a shutdown signal from the peer
@@ -66,10 +62,9 @@ public class UDTInputStream extends InputStream {
 	 * @param socket - the {@link UDTSocket}
 	 * @throws IOException
 	 */
-	public UDTInputStream(UDTSocket socket)throws IOException{
-		this.socket=socket;
-		int capacity=socket!=null? 2 * socket.getSession().getFlowWindowSize() : 128 ;
-		long initialSequenceNum=socket!=null?socket.getSession().getInitialSequenceNumber():1;
+	public UDTInputStream(int capacity, long initialSequenceNum)throws IOException{
+		// int capacity=socket!=null? 2 * socket.getSession().getFlowWindowSize() : 128 ;
+		// long initialSequenceNum=socket!=null?socket.getSession().getInitialSequenceNumber():1;
 		receiveBuffer=new ReceiveBuffer(capacity,initialSequenceNum);
 	}
 
@@ -185,10 +180,6 @@ public class UDTInputStream extends InputStream {
 		noMoreData();
 	}
 
-	public UDTSocket getSocket(){
-		return socket;
-	}
-
 	/**
 	 * sets the blocking mode
 	 * @param block
@@ -197,15 +188,11 @@ public class UDTInputStream extends InputStream {
 		this.blocking=block;
 	}
 
-	public int getReceiveBufferSize(){
-		return receiveBuffer.getSize();
-	}
-	
 	/**
 	 * notify the input stream that there is no more data
 	 * @throws IOException
 	 */
-	protected void noMoreData()throws IOException{
+	private void noMoreData()throws IOException{
 		expectMoreData.set(false);
 	}
 

@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import udt.packets.ConnectionHandshake;
+import udt.packets.DataPacket;
 import udt.packets.Destination;
 import udt.packets.Shutdown;
 import udt.util.SequenceNumber;
@@ -56,7 +57,6 @@ public abstract class UDTSession {
 	protected int mode;
 	protected volatile boolean active;
 	protected volatile int state=start;
-	protected volatile UDTPacket lastPacket;
 	
 	//state constants	
 	public static final int start=0;
@@ -139,7 +139,7 @@ public abstract class UDTSession {
 	
 	
 	public abstract void received(UDTPacket packet, Destination peer);
-	
+	public abstract void onDataPacketReceived(DataPacket dp);	
 	
 	public UDTSocket getSocket() {
 		return socket;
@@ -393,7 +393,6 @@ public abstract class UDTSession {
 				setState(ready);
 				socket=new UDTSocket(this);
 				cc.init();
-				Thread.sleep(1000);
 				connected();
 			}catch(Exception ex){
 				logger.log(Level.WARNING,"Error creating socket",ex);

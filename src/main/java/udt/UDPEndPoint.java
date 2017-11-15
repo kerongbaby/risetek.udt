@@ -34,10 +34,8 @@ package udt;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -227,7 +225,8 @@ public class UDPEndPoint {
 	protected void doReceive()throws IOException{
 		while(!stopped){
 			if(0 == selector.select(Util.getSYNTime()/100) ) {
-				// System.out.print(".");
+				for(UDTSession session:sessions.values())
+					session.received(null, null);
 				continue;
 			}
 
@@ -255,7 +254,32 @@ public class UDPEndPoint {
 							session.received(packet,peer);
 						}
 						else if(packet.isConnectionHandshake()){
-							connectionHandshake((ConnectionHandshake)packet, peer);
+							System.out.println("isConnectionHandshake");
+							Destination p=new Destination(peer.getAddress(),peer.getPort());
+							session=sessionsBeingConnected.get(peer);
+							long destID=packet.getDestinationID();
+							if(session!=null && session.getSocketID()==destID){
+								//confirmation handshake
+								sessionsBeingConnected.remove(p);
+								addSession(destID, session);
+							}
+							else if(session==null){
+								session=new ServerSession(peer,this);
+								sessionsBeingConnected.put(p,session);
+								sessions.put(session.getSocketID(), session);
+								if(serverSocketMode){
+									logger.fine("Pooling new request.");
+									sessionHandoff.put(session);
+									session.connected();
+									logger.fine("Request taken for processing.");
+								}
+							}
+							else {
+								throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);
+							}
+							Long peerSocketID=((ConnectionHandshake)packet).getSocketID();
+							peer.setSocketID(peerSocketID);
+							session.received(packet,peer);
 						}
 						else{
 							logger.warning("Unknown session <"+dest+"> requested from <"+peer+"> packet type "+packet.getClass().getName());
@@ -285,33 +309,6 @@ public class UDPEndPoint {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	protected synchronized void connectionHandshake(ConnectionHandshake packet, Destination peer)throws IOException, InterruptedException{
-		Destination p=new Destination(peer.getAddress(),peer.getPort());
-		UDTSession session=sessionsBeingConnected.get(peer);
-		long destID=packet.getDestinationID();
-		if(session!=null && session.getSocketID()==destID){
-			//confirmation handshake
-			sessionsBeingConnected.remove(p);
-			addSession(destID, session);
-		}
-		else if(session==null){
-			session=new ServerSession(peer,this);
-			sessionsBeingConnected.put(p,session);
-			sessions.put(session.getSocketID(), session);
-			if(serverSocketMode){
-				logger.fine("Pooling new request.");
-				sessionHandoff.put(session);
-				logger.fine("Request taken for processing.");
-			}
-		}
-		else {
-			throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);
-		}
-		Long peerSocketID=((ConnectionHandshake)packet).getSocketID();
-		peer.setSocketID(peerSocketID);
-		session.received(packet,peer);
-	}
-
 	protected int doSend(UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
 		DatagramPacket dgp = packet.getSession().getDatagram();

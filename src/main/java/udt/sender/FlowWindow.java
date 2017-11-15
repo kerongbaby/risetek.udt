@@ -119,25 +119,6 @@ public class FlowWindow {
 		return isEmpty;
 	}
 
-	/**
-	 * check if another entry can be added
-	 * @return
-	 */
-	public boolean isFull(){
-		return isFull;
-	}
-
-	int readPos(){
-		return readPos;
-	}
-
-	int writePos(){
-		return writePos;
-	}
-	
-	int consumed(){
-		return consumed;
-	}
 	public String toString(){
 		StringBuilder sb=new StringBuilder();
 		sb.append("FlowWindow size=").append(length);

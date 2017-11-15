@@ -366,6 +366,11 @@ public abstract class UDTSender {
 	long iterationStart;
 	public void senderAlgorithm()throws InterruptedException, IOException{
 		while(!paused){
+			if(stopped && flowWindow.isEmpty()) {
+				System.out.println("end of senderAlgorithm");
+				return;
+			}
+
 			iterationStart=Util.getCurrentTime();
 			//if the sender's loss list is not empty 
 			Long entry=senderLossList.getFirstEntry();
@@ -397,11 +402,16 @@ public abstract class UDTSender {
 					waitForAck();
 				}
 			}
-
 			//wait
 			if(largestSentSequenceNumber % 16 !=0){
-				long snd=(long)session.getCongestionControl().getSendInterval();
-				long passed=Util.getCurrentTime()-iterationStart;
+				long snd=(long)session.getCongestionControl().getSendInterval()*100;
+				long passed=(Util.getCurrentTime()-iterationStart);
+				if((snd-passed)/1000 > 0) {
+					statistics.incNumberOfCCSlowDownEvents();
+					Thread.sleep((snd-passed)/1000);
+					//System.out.println("delay:" + (snd-passed)/1000);
+				}
+/*				
 				int x=0;
 				while(snd-passed>0){
 					//can't wait with microsecond precision :(
@@ -409,9 +419,9 @@ public abstract class UDTSender {
 						statistics.incNumberOfCCSlowDownEvents();
 						x++;
 					}
-					passed=Util.getCurrentTime()-iterationStart;
-					if(stopped && flowWindow.isEmpty())return;
+					passed=(Util.getCurrentTime()-iterationStart);
 				}
+*/
 			}
 		}
 	}

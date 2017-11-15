@@ -66,35 +66,6 @@ public class Util {
 	public static double getSYNTimeD(){
 		return 10000.0;
 	}
-	
-	/**
-	 * read a line terminated by a new line '\n' character
-	 * @param input - the input string to read from 
-	 * @return the line read or <code>null</code> if end of input is reached
-	 * @throws IOException
-	 */
-	public static String readLine(InputStream input)throws IOException{
-		char term=System.getProperty("line.separator").charAt(0);
-		return readLine(input, term);
-	}
-	
-	/**
-	 * read a line from the given input stream
-	 * @param input - the input stream
-	 * @param terminatorChar - the character used to terminate lines
-	 * @return the line read or <code>null</code> if end of input is reached
-	 * @throws IOException
-	 */
-	public static String readLine(InputStream input, char terminatorChar)throws IOException{
-		ByteArrayOutputStream bos=new ByteArrayOutputStream();
-		while(true){
-			int c=input.read();
-			if(c<0 && bos.size()==0)return null;
-			if(c<0 || c==terminatorChar)break;
-			else bos.write(c);
-		}
-		return bos.size()>0? bos.toString() : null;
-	}
 
 	/**
 	 * copy input data from the source stream to the target stream

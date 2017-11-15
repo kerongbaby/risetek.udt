@@ -42,7 +42,7 @@ import udt.packets.ConnectionHandshake;
 import udt.packets.Destination;
 import udt.packets.KeepAlive;
 import udt.packets.Shutdown;
-import udt.util.SequenceNumber;
+import udt.packets.DataPacket;
 
 /**
  * server side session in client-server mode
@@ -63,7 +63,8 @@ public class ServerSession extends UDTSession {
 	
 	@Override
 	public void received(UDTPacket packet, Destination peer){
-		lastPacket=packet;
+		if(null == packet)
+			return;
 
 		if(packet.isConnectionHandshake()) {
 			handleHandShake((ConnectionHandshake)packet);
@@ -107,7 +108,12 @@ public class ServerSession extends UDTSession {
 
 	@Override
 	public void connected() {
-		// This is for ClientSession , so do nothing.
+		System.out.println("server socket connected");
+	}
+
+	@Override
+	public void onDataPacketReceived(DataPacket dp) {
+		
 	}
 }
 

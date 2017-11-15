@@ -44,6 +44,7 @@ import udt.UDTInputStream;
 import udt.UDTOutputStream;
 import udt.UDTReceiver;
 import udt.UDTSession;
+import udt.packets.DataPacket;
 
 /**
  * helper class for receiving a single file via UDT
@@ -174,6 +175,12 @@ public class ReceiveFile extends Application{
 			public void UDTClientConnected(UDTSession session) {
 				rf.mySession = session;
 				rf.run();
+			}
+
+			@Override
+			public void onDataPacketReceived(UDTSession session, DataPacket dp) {
+				System.out.println("Recevie file chunk.");
+				
 			}
 		};
 		

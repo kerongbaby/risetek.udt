@@ -8,6 +8,7 @@ import udt.UDTClient;
 import udt.UDTInputStream;
 import udt.UDTReceiver;
 import udt.UDTSession;
+import udt.packets.DataPacket;
 
 /**
  * 请求并接收DServer发送数据的客户端程序，用于调试和度量
@@ -73,11 +74,20 @@ public class DClient extends Application{
 			@Override
 			public void UDTClientConnected(UDTSession session) {
 				rf.mySession = session;
+				System.out.println("getInitialSequenceNumber:" + session.getInitialSequenceNumber());
+//				int capacity=2 * session.getFlowWindowSize();
+//				long initialSequenceNum=session.getInitialSequenceNumber();
 				// rf.run();
 				synchronized(rf) {
 					System.out.println("notify");
 					rf.notify();
 				}
+			}
+
+			private int count = 0;
+			@Override
+			public void onDataPacketReceived(UDTSession session, DataPacket dp) {
+				System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
 			}
 		};
 		

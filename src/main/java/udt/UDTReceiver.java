@@ -204,12 +204,8 @@ public class UDTReceiver {
 					//session.getSocket().getInputStream();
 					
 					logger.info("STARTING RECEIVER for "+session);
-					nextACK=Util.getCurrentTime()+ackTimerInterval;
-					nextNAK=(long)(Util.getCurrentTime()+1.5*nakTimerInterval);
-					nextEXP=Util.getCurrentTime()+2*expTimerInterval;
-					ackInterval=session.getCongestionControl().getAckInterval();
 					while(!stopped){
-						receiverAlgorithm();
+						receiverAlgorithm(null);
 					}
 				}
 				catch(Exception ex){
@@ -240,7 +236,15 @@ public class UDTReceiver {
 	 * receiver algorithm 
 	 * see specification P11.
 	 */
-	public void receiverAlgorithm()throws InterruptedException,IOException{
+	private boolean receiverAlgorithmInited = false;
+	public void receiverAlgorithm(UDTPacket packet) throws IOException, InterruptedException{
+		if(!receiverAlgorithmInited) {
+			nextACK=Util.getCurrentTime()+ackTimerInterval;
+			nextNAK=(long)(Util.getCurrentTime()+1.5*nakTimerInterval);
+			nextEXP=Util.getCurrentTime()+2*expTimerInterval;
+			ackInterval=session.getCongestionControl().getAckInterval();
+			receiverAlgorithmInited = true;
+		}
 		//check ACK timer
 		long currentTime=Util.getCurrentTime();
 		if(nextACK<currentTime){
@@ -259,7 +263,8 @@ public class UDTReceiver {
 			processEXPEvent();
 		}
 		//perform time-bounded UDP receive
-		UDTPacket packet=handoffQueue.poll(Util.getSYNTime(), TimeUnit.MICROSECONDS);
+		if(null == packet)
+			packet=handoffQueue.poll(Util.getSYNTime(), TimeUnit.MICROSECONDS);
 		if(packet!=null){
 			if(storeStatistics)processTime.begin();
 			//reset exp count to 1
@@ -292,8 +297,6 @@ public class UDTReceiver {
 			}
 			if(storeStatistics)processTime.end();
 		}
-		
-		// Thread.yield();
 	}
 
 	/**
@@ -390,8 +393,11 @@ public class UDTReceiver {
 		boolean OK=session.getSocket().getInputStream().haveNewData(currentSequenceNumber,dp.getData());
 		if(!OK){
 			//need to drop packet...
+			System.out.println("drop packet");
 			return;
 		}
+		
+		session.onDataPacketReceived(dp);
 		
 		long currentDataPacketArrivalTime = Util.getCurrentTime();
 
@@ -527,6 +533,8 @@ public class UDTReceiver {
 		if(entry!=null){
 			long ackNumber=entry.getAckNumber();
 			largestAcknowledgedAckNumber=Math.max(ackNumber, largestAcknowledgedAckNumber);
+			
+			System.out.println("largestAcknowledgedAckNumber:" + largestAcknowledgedAckNumber);
 			
 			long rtt=entry.getAge();
 			if(roundTripTime>0)roundTripTime = (roundTripTime*7 + rtt)/8;

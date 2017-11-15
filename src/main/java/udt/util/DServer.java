@@ -77,6 +77,7 @@ public class DServer extends Application{
 		public void run(){
 			try{
 				logger.info("Handling request from "+socket.getSession().getDestination());
+				System.out.println("begin sending data.");
 				UDTOutputStream out=socket.getOutputStream();
 				
 				try{
@@ -104,6 +105,7 @@ public class DServer extends Application{
 	private static void sendDatas(OutputStream os)throws Exception{
 		byte[]buf=new byte[1024];
 		for(int looper = 0; looper < numberPackets; looper++) {
+			System.out.print(" " + looper);
 			os.write(buf, 0, 1024);
 		}
 		os.flush();

@@ -78,45 +78,37 @@ public abstract class ClientSession extends UDTSession {
 	 */
 	Timer timer = new Timer();
 	public void connect() throws InterruptedException,IOException{
-		int n=0;
-		while(getState()!=ready){
-			if(getState()==invalid)throw new IOException("Can't connect!");
-			timer.scheduleAtFixedRate(new TimerTask() {
-
-				@Override
-				public void run() {
-					System.out.println("timer connect");
-
-					if( getState() == ready ) {
-						System.out.println("session connected, stop timer");
-						timer.cancel();
-					}
-
-
-					if(getState()<=handshaking){
-						setState(handshaking);
-						try {
-							sendInitialHandShake();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					}
-				
-				}}, 0, 100);
+		if(getState() == ready)
+			return;
+		if(getState() == invalid)
+			throw new IOException("invalid connection");
 			
-			if(n++ > 1000)throw new IOException("Could not connect to server within the timeout.");
-			Thread.sleep(50);
-		}
-		// ready状态会涉及到UDTSocket的构造，如果不延迟一阵，后期的获取inputStream会出现问题，这里说明顺序是有提升空间的。
-		// Thread.sleep(1000);
-		// logger.info("Connected, "+n+" handshake packets sent");
-		// connected();
+		timer.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run() {
+				if( getState() == ready ) {
+					System.out.println("session connected, stop timer");
+					timer.cancel();
+				}
+
+				if(getState()<=handshaking){
+					setState(handshaking);
+					try {
+						System.out.println("sendInitialHandShake");
+						sendInitialHandShake();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			
+			}}, 0, 100);
 	}
 
 	@Override
 	public void received(UDTPacket packet, Destination peer) {
-		lastPacket=packet;
-
+		if(null == packet) {
+			return;
+		}
 		if (packet.isConnectionHandshake()) {
 			ConnectionHandshake hs=(ConnectionHandshake)packet;
 			handleConnectionHandshake(hs,peer);
@@ -134,9 +126,9 @@ public abstract class ClientSession extends UDTSession {
 			active = true;
 			try{
 				if(packet.forSender()){
-					socket.getSender().receive(lastPacket);
+					socket.getSender().receive(packet);
 				}else{
-					socket.getReceiver().receive(lastPacket);	
+					socket.getReceiver().receive(packet);	
 				}
 			}catch(Exception ex){
 				//session is invalid
