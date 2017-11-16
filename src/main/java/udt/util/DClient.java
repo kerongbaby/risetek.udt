@@ -4,16 +4,18 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.text.NumberFormat;
 
+import udt.SessionHandlers;
 import udt.UDTClient;
 import udt.UDTInputStream.AppData;
-import udt.UDTReceiver;
 import udt.UDTSession;
 import udt.packets.DataPacket;
 
 /**
  * 请求并接收DServer发送数据的客户端程序，用于调试和度量
  */
-public class DClient extends Application{
+public class DClient extends Application implements SessionHandlers {
+	long time_passed;
+
 	public void run(){
 		System.out.println("do nothing");
 	}
@@ -30,66 +32,71 @@ public class DClient extends Application{
 			System.exit(1);
 		}
 		
-		UDTReceiver.connectionExpiryDisabled=true;
+		DClient dclient = new DClient();
+		
 		InetAddress myHost=InetAddress.getLocalHost();
 		UDTClient client=new UDTClient(myHost,0) {
-			long time_passed;
 			@Override
 			public void UDTClientConnected(UDTSession session) {
-				System.out.println("getInitialSequenceNumber:" + session.getInitialSequenceNumber());
-				time_passed = System.currentTimeMillis();
-			}
-
-			private int count = 0;
-			@Override
-			public boolean onDataPacketReceived(UDTSession session, DataPacket dp) {
-				// System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
-				if(!session.receiveBuffer.offer(new AppData((dp.getPacketSequenceNumber()-session.getInitialSequenceNumber()), dp.getData()))) {
-					System.out.println("data packet overload");
-					return false;
-				}
-				
-				boolean haveone = false;
-				for(;;) {
-					AppData data;
-					if((data = session.receiveBuffer.poll()) == null)
-						break;
-					haveone = true;
-					// System.out.print(" " +  data.getSequenceNumber());
-					
-					if(1023 == data.getSequenceNumber()) {
-						try {
-							session.shutdown();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-
-						NumberFormat format = NumberFormat.getNumberInstance();
-						format.setMaximumFractionDigits(3);
-						time_passed = System.currentTimeMillis() - time_passed;
-						double rate=1000.0 / time_passed;
-						System.out.println(session.getStatistics());
-						System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
-						
-						synchronized(this) {
-							notify();
-						}
-					}
-				}
-				// if(haveone)	System.out.println();
-				return true;
+				dclient.time_passed = System.currentTimeMillis();
+				session.registeSessionHandlers(dclient);
 			}
 		};
 		
 		client.connect(serverHost, serverPort);
 		
-		synchronized(client) {
-			client.wait();
+		synchronized(dclient) {
+			dclient.wait();
 		}
 		System.out.println("bye my world!");
 	}
 	
 	public static void usage(){
 		System.out.println("Usage: java -cp .. udt.util.DClient <server_ip>");
+	}
+
+	@Override
+	public void onDataRequest() {
+		// do nothing
+	}
+
+	@Override
+	public boolean onDataReceive(UDTSession session, DataPacket packet) {
+		// System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
+		if(!session.receiveBuffer.offer(new AppData((packet.getPacketSequenceNumber()-session.getInitialSequenceNumber()), packet.getData()))) {
+			System.out.println("data packet overload");
+			return false;
+		}
+		
+		for(;;) {
+			AppData data;
+			if((data = session.receiveBuffer.poll()) == null)
+				break;
+			
+			if(1023 == data.getSequenceNumber()) {
+				try {
+					session.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				System.out.println(session.getStatistics());
+
+				NumberFormat format = NumberFormat.getNumberInstance();
+				format.setMaximumFractionDigits(3);
+				time_passed = System.currentTimeMillis() - time_passed;
+				double rate=1000.0 / time_passed;
+				System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
+
+				synchronized(this) {
+					notify();
+				}
+			}
+		}
+		return true;
+		}
+
+	@Override
+	public void onShutdown() {
+		System.out.println("session shutdown");
 	}
 }

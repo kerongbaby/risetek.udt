@@ -63,8 +63,18 @@ public class ServerSession extends UDTSession {
 	
 	@Override
 	public void received(UDTPacket packet, Destination peer){
-		if(null == packet)
+		if(null == packet) {
+			if(null == socket)
+				return;
+			if(null == socket.getReceiver())
+				return;
+			try {
+				socket.getReceiver().receive(null);
+			} catch (IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
 			return;
+		}
 
 		if(packet.isConnectionHandshake()) {
 			handleHandShake((ConnectionHandshake)packet);
@@ -95,7 +105,7 @@ public class ServerSession extends UDTSession {
 				if(packet.forSender()){
 					socket.getSender().receive(packet);
 				}else{
-					socket.getReceiver().receive(packet);	
+					socket.getReceiver().receive(packet);
 				}
 			}catch(Exception ex){
 				//session invalid
@@ -109,11 +119,6 @@ public class ServerSession extends UDTSession {
 	@Override
 	public void connected() {
 		System.out.println("server socket connected");
-	}
-
-	@Override
-	public boolean onDataPacketReceived(DataPacket dp) {
-		return true;
 	}
 
 	@Override

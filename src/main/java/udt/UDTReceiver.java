@@ -33,20 +33,16 @@
 package udt;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import udt.packets.Acknowledgement;
 import udt.packets.Acknowledgment2;
 import udt.packets.ControlPacket;
+import udt.packets.ControlPacket.ControlPacketType;
 import udt.packets.DataPacket;
 import udt.packets.KeepAlive;
 import udt.packets.NegativeAcknowledgement;
 import udt.packets.Shutdown;
-import udt.packets.ControlPacket.ControlPacketType;
 import udt.receiver.AckHistoryEntry;
 import udt.receiver.AckHistoryWindow;
 import udt.receiver.PacketHistoryWindow;
@@ -56,7 +52,6 @@ import udt.receiver.ReceiverLossListEntry;
 import udt.util.MeanValue;
 import udt.util.SequenceNumber;
 import udt.util.UDTStatistics;
-import udt.util.UDTThreadFactory;
 import udt.util.Util;
 
 /**
@@ -137,11 +132,6 @@ public class UDTReceiver {
 	//buffer size for storing data
 	private final long bufferSize;
 
-	//stores received packets to be sent
-	private final BlockingQueue<UDTPacket>handoffQueue;
-
-	private Thread receiverThread;
-
 	private volatile boolean stopped=false;
 
 	//(optional) ack interval (see CongestionControl interface)
@@ -171,10 +161,9 @@ public class UDTReceiver {
 		packetPairWindow = new PacketPairWindow(16);
 		largestReceivedSeqNumber=session.getInitialSequenceNumber()-1;
 		bufferSize=session.getReceiveBufferSize();
-		handoffQueue=new ArrayBlockingQueue<UDTPacket>(4*session.getFlowWindowSize());
 		storeStatistics=Boolean.getBoolean("udt.receiver.storeStatistics");
 		initMetrics();
-		start();
+		// start();
 	}
 	
 	private MeanValue dgReceiveInterval;
@@ -193,42 +182,12 @@ public class UDTReceiver {
 		statistics.addMetric(dataProcessTime);
 	}
 
-
-	//starts the sender algorithm
-	private void start(){
-		
-		Runnable r=new Runnable(){
-			public void run(){
-				try{
-					while(session.getSocket()==null)Thread.sleep(100);
-					//session.getSocket().getInputStream();
-					
-					logger.info("STARTING RECEIVER for "+session);
-					while(!stopped){
-						receiverAlgorithm(null);
-					}
-				}
-				catch(Exception ex){
-					logger.log(Level.SEVERE,"",ex);
-				}
-				logger.info("STOPPING RECEIVER for "+session);
-			}
-		};
-		receiverThread=UDTThreadFactory.get().newThread(r);
-		String s=(session instanceof ServerSession)? "ServerSession": "ClientSession";
-		receiverThread.setName("UDTReceiver-"+s+"-"+receiverThread.getName());
-		receiverThread.start();
-	}
-
 	/*
 	 * packets are written by the endpoint
 	 */
-	protected void receive(UDTPacket p)throws IOException{
+	protected void receive(UDTPacket p)throws IOException, InterruptedException{
 		if(storeStatistics)dgReceiveInterval.end();
-/*		if(!p.isControlPacket()){
-			System.out.println("++ "+p+" queuesize="+handoffQueue.size());
-		}
-*/		handoffQueue.offer(p);
+		receiverAlgorithm(p);
 		if(storeStatistics)dgReceiveInterval.begin();
 	}
 
@@ -262,9 +221,7 @@ public class UDTReceiver {
 			nextEXP=currentTime+expTimerInterval;
 			processEXPEvent();
 		}
-		//perform time-bounded UDP receive
-		if(null == packet)
-			packet=handoffQueue.poll(Util.getSYNTime(), TimeUnit.MICROSECONDS);
+
 		if(packet!=null){
 			if(storeStatistics)processTime.begin();
 			//reset exp count to 1
@@ -583,6 +540,8 @@ public class UDTReceiver {
 	
 	protected void onShutdown()throws IOException{
 		stop();
+		if(null != session.sessionHandlers)
+			session.sessionHandlers.onShutdown();
 	}
 
 	public void stop()throws IOException{

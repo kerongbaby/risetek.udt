@@ -292,7 +292,8 @@ public class UDPEndPoint {
 						logger.log(Level.WARNING, "Got: "+ex.getMessage(),ex);
 					}
 					// Register write with the selector
-					key.interestOps(SelectionKey.OP_READ);
+					if(!stopped)
+						key.interestOps(SelectionKey.OP_READ);
 				}
 
 			}

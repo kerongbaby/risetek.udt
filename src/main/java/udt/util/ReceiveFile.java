@@ -176,12 +176,6 @@ public class ReceiveFile extends Application{
 				rf.mySession = session;
 				rf.run();
 			}
-
-			@Override
-			public boolean onDataPacketReceived(UDTSession session, DataPacket dp) {
-				System.out.println("Recevie file chunk.");
-				return true;
-			}
 		};
 		
 		client.connect(serverHost, serverPort);

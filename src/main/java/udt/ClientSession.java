@@ -107,6 +107,15 @@ public abstract class ClientSession extends UDTSession {
 	@Override
 	public void received(UDTPacket packet, Destination peer) {
 		if(null == packet) {
+			if(null == socket)
+				return;
+			if(null == socket.getReceiver())
+				return;
+			try {
+				socket.getReceiver().receive(null);
+			} catch (IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
 			return;
 		}
 		if (packet.isConnectionHandshake()) {
@@ -128,7 +137,7 @@ public abstract class ClientSession extends UDTSession {
 				if(packet.forSender()){
 					socket.getSender().receive(packet);
 				}else{
-					socket.getReceiver().receive(packet);	
+					socket.getReceiver().receive(packet);
 				}
 			}catch(Exception ex){
 				//session is invalid

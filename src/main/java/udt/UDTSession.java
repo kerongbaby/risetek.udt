@@ -116,9 +116,14 @@ public abstract class UDTSession {
 	protected Long initialSequenceNumber=null;
 	
 	protected final long mySocketID;
+	protected SessionHandlers sessionHandlers;
 	
 	private final static AtomicLong nextSocketID=new AtomicLong(20+new Random().nextInt(5000));
 	public final ReceiveBuffer receiveBuffer;
+	
+	public void registeSessionHandlers(SessionHandlers sessionHandlers) {
+		this.sessionHandlers = sessionHandlers;
+	}
 	
 	public UDTSession(String description, Destination destination, UDPEndPoint endPoint){
 		this.endPoint = endPoint;
@@ -145,7 +150,13 @@ public abstract class UDTSession {
 	
 	
 	public abstract void received(UDTPacket packet, Destination peer);
-	public abstract boolean onDataPacketReceived(DataPacket dp);	
+	
+	public final boolean onDataPacketReceived(DataPacket packet) {
+		if(null != sessionHandlers)
+			return sessionHandlers.onDataReceive(this, packet);
+		return false;
+	}
+	
 	public abstract void requestSend();
 	
 	public UDTSocket getSocket() {
@@ -247,6 +258,7 @@ public abstract class UDTSession {
 			shutdown.setSession(this);
 			endPoint.doSend(shutdown);
 			getSocket().getReceiver().stop();
+			System.out.println("stop session");
 			endPoint.stop();
 		}
 	}

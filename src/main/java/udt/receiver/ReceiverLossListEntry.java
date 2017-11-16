@@ -48,6 +48,7 @@ public class ReceiverLossListEntry implements Comparable<ReceiverLossListEntry> 
 	 * @param sequenceNumber
 	 */
 	public ReceiverLossListEntry(long sequenceNumber){
+		// TODO: sequenceNumber may be to 0 ?
 		if(sequenceNumber<=0){
 			throw new IllegalArgumentException("Got sequence number "+sequenceNumber);
 		}
