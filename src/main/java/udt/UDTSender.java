@@ -159,7 +159,6 @@ public class UDTSender {
 						//wait until explicitely (re)started
 						// startLatch.await();
 						paused=false;
-						System.out.println("sender ing");
 						senderAlgorithm();
 					}
 				}catch(InterruptedException ie){
@@ -183,13 +182,13 @@ public class UDTSender {
 	/** 
 	 * sends the given data packet, storing the relevant information
 	 */
-	private void send(DataPacket p)throws IOException{
+	private void send(UDTSession session, DataPacket p)throws IOException{
 		synchronized(sendLock){
 			if(storeStatistics){
 				dgSendInterval.end();
 				dgSendTime.begin();
 			}
-			if(endpoint.doSend(p) <= 0)
+			if(endpoint.doSend(session, p) <= 0)
 				System.out.println("send datapacket failed");
 			if(storeStatistics){
 				dgSendTime.end();
@@ -339,7 +338,7 @@ public class UDTSender {
 		KeepAlive keepAlive = new KeepAlive();
 		//TODO
 		keepAlive.setSession(session);
-		endpoint.doSend(keepAlive);
+		endpoint.doSend(session, keepAlive);
 	}
 
 	protected void sendAck2(long ackSequenceNumber)throws IOException{
@@ -347,7 +346,7 @@ public class UDTSender {
 		ackOfAckPkt.setAckSequenceNumber(ackSequenceNumber);
 		ackOfAckPkt.setSession(session);
 		ackOfAckPkt.setDestinationID(session.getDestination().getSocketID());
-		endpoint.doSend(ackOfAckPkt);
+		endpoint.doSend(session, ackOfAckPkt);
 	}
 
 	/**
@@ -378,7 +377,7 @@ public class UDTSender {
 					//check for application data
 					DataPacket dp=session.flowWindow.consumeData();
 					if(dp!=null){
-						send(dp);
+						send(session, dp);
 						largestSentSequenceNumber=dp.getPacketSequenceNumber();
 					}
 					else{
@@ -433,7 +432,7 @@ public class UDTSender {
 				retransmit.setSession(session);
 				retransmit.setDestinationID(session.getDestination().getSocketID());
 				retransmit.setData(data);
-				endpoint.doSend(retransmit);
+				endpoint.doSend(session, retransmit);
 				statistics.incNumberOfRetransmittedDataPackets();
 			}
 		}catch (Exception e) {

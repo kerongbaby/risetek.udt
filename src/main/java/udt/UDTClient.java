@@ -44,7 +44,7 @@ public abstract class UDTClient extends UDPEndPoint {
 	public UDTClient(InetAddress address, int localport)throws IOException {
 		super(address,localport);
 		logger.info("Created client endpoint on port "+ getLocalPort());
-		start(false);
+		start();
 	}
 
 	public UDTClient(InetAddress address)throws IOException {

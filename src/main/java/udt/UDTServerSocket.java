@@ -34,21 +34,12 @@ package udt;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 
-public class UDTServerSocket {
+public abstract class UDTServerSocket extends UDPEndPoint {
 	
-	private static final Logger logger=Logger.getLogger(UDTClient.class.getName());
-	
-	private final UDPEndPoint endpoint;
-	
-	private boolean started=false;
-	
-	private volatile boolean shutdown=false;
+	private static final Logger logger=Logger.getLogger(UDTServerSocket.class.getName());
 	
 	/**
 	 * create a UDT ServerSocket
@@ -56,44 +47,13 @@ public class UDTServerSocket {
 	 * @param port - the local port. If 0, an ephemeral port will be chosen
 	 */
 	public UDTServerSocket(InetAddress localAddress, int port)throws IOException {
-		endpoint=new UDPEndPoint(localAddress,port);
-		logger.info("Created server endpoint on port "+endpoint.getLocalPort());
+		super(localAddress,port);
+		logger.info("Created server endpoint on port "+getLocalPort());
+		start();
 	}
 
 	//starts a server on localhost
 	public UDTServerSocket(int port)throws IOException {
 		this(InetAddress.getLocalHost(),port);
-	}
-	
-	/**
-	 * listens and blocks until a new client connects and returns a valid {@link UDTSocket}
-	 * for the new connection
-	 * @return
-	 */
-	public synchronized UDTSession accept()throws InterruptedException{
-		if(!started){
-			endpoint.start(true);
-			started=true;
-		}
-		while(!shutdown){
-			UDTSession session=endpoint.accept(10000, TimeUnit.MILLISECONDS);
-			if(session!=null){
-				//wait for handshake to complete
-				while(!session.isReady()){
-					Thread.sleep(100);
-				}
-				return session;
-			}
-		}
-		throw new InterruptedException();
-	} 
-	
-	public void shutDown() throws IOException {
-		shutdown=true;
-		endpoint.stop();
-	}
-	
-	public UDPEndPoint getEndpoint(){
-		return endpoint;
 	}
 }

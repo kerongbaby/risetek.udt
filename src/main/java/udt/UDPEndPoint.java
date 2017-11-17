@@ -33,7 +33,6 @@
 package udt;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -43,7 +42,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -53,6 +51,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import udt.packets.ConnectionHandshake;
 import udt.packets.Destination;
 import udt.packets.PacketFactory;
@@ -63,21 +62,14 @@ import udt.util.Util;
  * the UDPEndpoint takes care of sending and receiving UDP network packets,
  * dispatching them to the correct {@link UDTSession}
  */
-public class UDPEndPoint {
-
+public abstract class UDPEndPoint {
 	private static final Logger logger=Logger.getLogger(UDPEndPoint.class.getName());
 
-//	private final int port;
-
-//	private final DatagramSocket dgSocket;
 	private final DatagramChannel dgChannel;
 	private final Selector selector;
 
 	//active sessions keyed by socket ID
 	private final Map<Long,UDTSession>sessions=new ConcurrentHashMap<Long, UDTSession>();
-
-	//last received packet
-	private UDTPacket lastPacket;
 
 	private final Map<Destination,UDTSession> sessionsBeingConnected=Collections.synchronizedMap(new HashMap<Destination,UDTSession>());
 
@@ -85,13 +77,12 @@ public class UDPEndPoint {
 	//this queue is used to handoff new UDTSessions to the application
 	private final SynchronousQueue<UDTSession> sessionHandoff=new SynchronousQueue<UDTSession>();
 
-	private boolean serverSocketMode=false;
-
 	//has the endpoint been stopped?
 	private volatile boolean stopped=false;
 
 	public static final int DATAGRAM_SIZE=1400;
 
+	public abstract void onSessionAccept(UDTSession session);
 	/**
 	 * bind to any local port on the given host address
 	 * @param localAddress
@@ -141,8 +132,7 @@ public class UDPEndPoint {
 	 * call #accept() to get the socket
 	 * @param serverSocketModeEnabled
 	 */
-	public void start(boolean serverSocketModeEnabled){
-		serverSocketMode=serverSocketModeEnabled;
+	public void start(){
 		//start receive thread
 		Runnable receive=new Runnable(){
 			public void run(){
@@ -162,7 +152,6 @@ public class UDPEndPoint {
 
 	public void stop() throws IOException {
 		stopped=true;
-		//dgSocket.close();
 		dgChannel.close();
 	}
 
@@ -170,32 +159,18 @@ public class UDPEndPoint {
 	 * @return the port which this client is bound to
 	 */
 	public int getLocalPort() {
-		//return this.dgSocket.getLocalPort();
 		return dgChannel.socket().getLocalPort();
 	}
 	/**
 	 * @return Gets the local address to which the socket is bound
 	 */
 	public InetAddress getLocalAddress(){
-		//return this.dgSocket.getLocalAddress();
 		return dgChannel.socket().getLocalAddress();
-	}
-
-	UDTPacket getLastPacket(){
-		return lastPacket;
 	}
 
 	public void addSession(Long destinationID,UDTSession session){
 		logger.info("Storing session <"+destinationID+">");
 		sessions.put(destinationID, session);
-	}
-
-	public UDTSession getSession(Long destinationID){
-		return sessions.get(destinationID);
-	}
-
-	public Collection<UDTSession> getSessions(){
-		return sessions.values();
 	}
 
 	/**
@@ -209,8 +184,6 @@ public class UDPEndPoint {
 		return sessionHandoff.poll(timeout, unit);
 	}
 
-
-	// final DatagramPacket dp= new DatagramPacket(new byte[DATAGRAM_SIZE],DATAGRAM_SIZE);
 	private final ByteBuffer dpbuffer = ByteBuffer.allocate(DATAGRAM_SIZE);
 
 	/**
@@ -245,7 +218,6 @@ public class UDPEndPoint {
 						int l=dpbuffer.position();
 						dpbuffer.flip();
 						UDTPacket packet=PacketFactory.createPacket(dpbuffer.array(),l);
-						lastPacket=packet;
 
 						long dest=packet.getDestinationID();
 						UDTSession session=sessions.get(dest);
@@ -266,12 +238,10 @@ public class UDPEndPoint {
 								session=new ServerSession(peer,this);
 								sessionsBeingConnected.put(p,session);
 								sessions.put(session.getSocketID(), session);
-								if(serverSocketMode){
-									logger.fine("Pooling new request.");
-									sessionHandoff.put(session);
-									session.connected();
-									logger.fine("Request taken for processing.");
-								}
+								logger.fine("Pooling new request.");
+								onSessionAccept(session);
+								// sessionHandoff.put(session);
+								logger.fine("Request taken for processing.");
 							}
 							else {
 								throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);
@@ -309,19 +279,13 @@ public class UDPEndPoint {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	protected int doSend(UDTPacket packet)throws IOException{
+	protected int doSend(UDTSession session, UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
-		DatagramPacket dgp = packet.getSession().getDatagram();
 		ByteBuffer bb = ByteBuffer.wrap(data);
-		return dgChannel.send(bb, dgp.getSocketAddress());
+		return dgChannel.send(bb, session.getTargetAddress());
 	}
 
 	public String toString(){
 		return  "UDPEndpoint port="+dgChannel.socket().getLocalPort();
 	}
-
-	public void sendRaw(DatagramPacket p)throws IOException{
-		dgChannel.socket().send(p);
-	}
-
 }

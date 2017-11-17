@@ -42,7 +42,6 @@ import udt.packets.ConnectionHandshake;
 import udt.packets.Destination;
 import udt.packets.KeepAlive;
 import udt.packets.Shutdown;
-import udt.packets.DataPacket;
 
 /**
  * server side session in client-server mode

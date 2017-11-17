@@ -41,6 +41,11 @@ public class DClient extends Application implements SessionHandlers {
 				dclient.time_passed = System.currentTimeMillis();
 				session.registeSessionHandlers(dclient);
 			}
+
+			@Override
+			public void onSessionAccept(UDTSession session) {
+				System.out.println("should not happen.");
+			}
 		};
 		
 		client.connect(serverHost, serverPort);
@@ -92,5 +97,10 @@ public class DClient extends Application implements SessionHandlers {
 	@Override
 	public void onShutdown() {
 		System.out.println("session shutdown");
+	}
+
+	@Override
+	public void onSessionEnd(UDTSession session) {
+		System.out.println("session end");
 	}
 }

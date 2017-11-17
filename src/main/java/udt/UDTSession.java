@@ -33,11 +33,12 @@
 package udt;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
+import java.net.InetSocketAddress;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import udt.packets.ConnectionHandshake;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
@@ -53,7 +54,7 @@ public abstract class UDTSession {
 	public abstract void connected();
 	
 
-	protected final UDPEndPoint endPoint;
+	private final UDPEndPoint endPoint;
 
 	protected int mode;
 	protected volatile boolean active;
@@ -74,13 +75,13 @@ public abstract class UDTSession {
 	
 	protected final UDTStatistics statistics;
 	
-	protected int receiveBufferSize=64*32768;
+	private int receiveBufferSize=64*32768;
 	
 	protected final CongestionControl cc;
 	
-	//cache dgPacket (peer stays the same always)
-	private DatagramPacket dgPacket;
-
+	private InetSocketAddress targetAddress;
+	
+	
 	//session cookie created during handshake
 	protected long sessionCookie=0;
 	
@@ -136,7 +137,7 @@ public abstract class UDTSession {
 		statistics=new UDTStatistics(description);
 		mySocketID=nextSocketID.incrementAndGet();
 		this.destination=destination;
-		this.dgPacket=new DatagramPacket(new byte[0],0,destination.getAddress(),destination.getPort());
+		this.targetAddress = new InetSocketAddress(destination.getAddress(),destination.getPort());
 		String clazzP=System.getProperty(CC_CLASS,UDTCongestionControl.class.getName());
 		Object ccObject=null;
 		try{
@@ -149,9 +150,7 @@ public abstract class UDTSession {
 		cc=(CongestionControl)ccObject;
 		logger.info("Using "+cc.getClass().getName());
 		
-		int capacity= 2 * getFlowWindowSize();
-		//long initialSequenceNum = getInitialSequenceNumber();
-		receiveBuffer=new ReceiveBuffer(capacity,0);
+		receiveBuffer=new ReceiveBuffer(2 * getFlowWindowSize());
 		chunksize=getDatagramSize()-24;//need space for the header;
 		flowWindow=new FlowWindow(getFlowWindowSize(),chunksize);
 		receiver=new UDTReceiver(this);
@@ -181,10 +180,6 @@ public abstract class UDTSession {
 		return state;
 	}
 
-	public void setMode(int mode) {
-		this.mode = mode;
-	}
-
 	public abstract void setState(int state);
 	
 	public boolean isReady(){
@@ -211,16 +206,8 @@ public abstract class UDTSession {
 		return receiveBufferSize;
 	}
 
-	public void setReceiveBufferSize(int bufferSize) {
-		this.receiveBufferSize = bufferSize;
-	}
-
 	public int getFlowWindowSize() {
 		return flowWindowSize;
-	}
-
-	public void setFlowWindowSize(int flowWindowSize) {
-		this.flowWindowSize = flowWindowSize;
 	}
 
 	public UDTStatistics getStatistics(){
@@ -243,8 +230,8 @@ public abstract class UDTSession {
 		this.initialSequenceNumber=initialSequenceNumber;
 	}
 
-	public DatagramPacket getDatagram(){
-		return dgPacket;
+	public InetSocketAddress getTargetAddress() {
+		return targetAddress;
 	}
 	
 	public void shutdown()throws IOException{
@@ -254,7 +241,7 @@ public abstract class UDTSession {
 			Shutdown shutdown = new Shutdown();
 			shutdown.setDestinationID(getDestination().getSocketID());
 			shutdown.setSession(this);
-			endPoint.doSend(shutdown);
+			endPoint.doSend(this, shutdown);
 			receiver.stop();
 			endPoint.stop();
 		}
@@ -280,7 +267,7 @@ public abstract class UDTSession {
 		handshake.setSession(this);
 		handshake.setAddress(endPoint.getLocalAddress());
 		logger.info("Sending "+handshake);
-		endPoint.doSend(handshake);
+		endPoint.doSend(this, handshake);
 	}
 
 	/*
@@ -309,7 +296,7 @@ public abstract class UDTSession {
 		responseHandshake.setCookie(sessionCookie);
 		responseHandshake.setAddress(endPoint.getLocalAddress());
 		logger.info("Sending reply "+responseHandshake);
-		endPoint.doSend(responseHandshake);
+		endPoint.doSend(this, responseHandshake);
 	}
 	
 	//2nd handshake for connect
@@ -326,7 +313,7 @@ public abstract class UDTSession {
 		handshake.setAddress(endPoint.getLocalAddress());
 		handshake.setDestinationID(getDestination().getSocketID());
 		logger.info("Sending confirmation "+handshake);
-		endPoint.doSend(handshake);
+		endPoint.doSend(this, handshake);
 	}
 	
 	/**
@@ -377,7 +364,7 @@ public abstract class UDTSession {
 			finalConnectionHandshake.setAddress(endPoint.getLocalAddress());
 		}
 		logger.info("Sending final handshake ack "+finalConnectionHandshake);
-		endPoint.doSend(finalConnectionHandshake);
+		endPoint.doSend(this, finalConnectionHandshake);
 	}
 
 	// Client side handler
@@ -551,6 +538,6 @@ public abstract class UDTSession {
 
 	
 	protected int doSend(UDTPacket packet)throws IOException{
-		return endPoint.doSend(packet);
+		return endPoint.doSend(this, packet);
 	}
 }
