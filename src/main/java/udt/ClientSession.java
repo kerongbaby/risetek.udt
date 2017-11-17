@@ -42,11 +42,10 @@ import java.util.logging.Logger;
 import udt.packets.ConnectionHandshake;
 import udt.packets.Destination;
 import udt.packets.Shutdown;
-import udt.util.SequenceNumber;
 
 /**
  * Client side of a client-server UDT connection. 
- * Once established, the session provides a valid {@link UDTSocket}.
+ * Once established, the session provides a valid.
  */
 public abstract class ClientSession extends UDTSession {
 

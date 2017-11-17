@@ -79,7 +79,7 @@ public class UDTServerSocket {
 			UDTSession session=endpoint.accept(10000, TimeUnit.MILLISECONDS);
 			if(session!=null){
 				//wait for handshake to complete
-				while(!session.isReady() || session.getSocket()==null){
+				while(!session.isReady()){
 					Thread.sleep(100);
 				}
 				return session;

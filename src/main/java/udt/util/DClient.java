@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.text.NumberFormat;
 
+import udt.AppData;
 import udt.SessionHandlers;
 import udt.UDTClient;
-import udt.UDTInputStream.AppData;
 import udt.UDTSession;
 import udt.packets.DataPacket;
 

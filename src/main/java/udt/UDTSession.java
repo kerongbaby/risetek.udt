@@ -34,14 +34,10 @@ package udt;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.nio.ByteBuffer;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import udt.UDTInputStream.AppData;
 import udt.packets.ConnectionHandshake;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
@@ -72,7 +68,6 @@ public abstract class UDTSession {
 	
 	public static final int invalid=99;
 
-	protected volatile UDTSocket socket;
 	//processing received data
 	protected UDTReceiver receiver;
 	protected UDTSender sender;
@@ -160,14 +155,7 @@ public abstract class UDTSession {
 		chunksize=getDatagramSize()-24;//need space for the header;
 		flowWindow=new FlowWindow(getFlowWindowSize(),chunksize);
 		receiver=new UDTReceiver(this);
-		sender=new UDTSender(this) {
-
-			@Override
-			public void UDTSenderStoped() {
-				System.out.println("UDTSender had stoped");
-			}
-			
-		};
+		sender=new UDTSender(this);
 	}
 	
 	
@@ -185,10 +173,6 @@ public abstract class UDTSession {
 		return false;
 	}
 	
-	public UDTSocket getSocket() {
-		return socket;
-	}
-
 	public CongestionControl getCongestionControl() {
 		return cc;
 	}
@@ -199,10 +183,6 @@ public abstract class UDTSession {
 
 	public void setMode(int mode) {
 		this.mode = mode;
-	}
-
-	public void setSocket(UDTSocket socket) {
-		this.socket = socket;
 	}
 
 	public abstract void setState(int state);
@@ -427,7 +407,6 @@ public abstract class UDTSession {
 				// logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
 				//TODO validate parameters sent by peer
 				setState(ready);
-				socket=new UDTSocket(this);
 				cc.init();
 				connected();
 			}catch(Exception ex){
@@ -464,7 +443,6 @@ public abstract class UDTSession {
 				if(handShakeComplete){
 					logger.info("Client/Server handshake complete!");
 					setState(ready);
-					socket=new UDTSocket(this);
 					cc.init();
 				}
 			}catch(IOException ex){

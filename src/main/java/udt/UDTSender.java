@@ -49,7 +49,6 @@ import udt.packets.Acknowledgment2;
 import udt.packets.DataPacket;
 import udt.packets.KeepAlive;
 import udt.packets.NegativeAcknowledgement;
-import udt.sender.FlowWindow;
 import udt.sender.SenderLossList;
 import udt.util.MeanThroughput;
 import udt.util.MeanValue;
@@ -64,7 +63,7 @@ import udt.util.Util;
  * 
  * @see UDTReceiver
  */
-public abstract class UDTSender {
+public class UDTSender {
 
 	private static final Logger logger=Logger.getLogger(UDTSender.class.getName());
 
@@ -171,9 +170,6 @@ public abstract class UDTSender {
 					logger.log(Level.SEVERE,"",ex);
 				} finally {
 					System.out.println("stoped");
-					
-					UDTSender.this.UDTSenderStoped();
-					
 				}
 				logger.info("STOPPING SENDER for "+session);
 			}
@@ -183,8 +179,6 @@ public abstract class UDTSender {
 		senderThread.setName("UDTSender-"+s+"-"+senderThread.getName());
 		senderThread.start();
 	}
-
-	public abstract void UDTSenderStoped();
 
 	/** 
 	 * sends the given data packet, storing the relevant information
