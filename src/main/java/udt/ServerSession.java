@@ -99,7 +99,7 @@ public class ServerSession extends UDTSession {
 			active = true;
 			try{
 				if(packet.forSender()){
-					socket.getSender().receive(packet);
+					sender.receive(packet);
 				}else{
 					receiver.receive(packet);
 				}

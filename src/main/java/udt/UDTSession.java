@@ -73,7 +73,9 @@ public abstract class UDTSession {
 	public static final int invalid=99;
 
 	protected volatile UDTSocket socket;
-	public UDTReceiver receiver;
+	//processing received data
+	protected UDTReceiver receiver;
+	protected UDTSender sender;
 	
 	protected final UDTStatistics statistics;
 	
@@ -158,6 +160,14 @@ public abstract class UDTSession {
 		chunksize=getDatagramSize()-24;//need space for the header;
 		flowWindow=new FlowWindow(getFlowWindowSize(),chunksize);
 		receiver=new UDTReceiver(this);
+		sender=new UDTSender(this) {
+
+			@Override
+			public void UDTSenderStoped() {
+				System.out.println("UDTSender had stoped");
+			}
+			
+		};
 	}
 	
 	
@@ -487,7 +497,7 @@ public abstract class UDTSession {
 			return 0;
 
 		try{
-			packet.setPacketSequenceNumber(getSocket().getSender().getNextSequenceNumber());
+			packet.setPacketSequenceNumber(sender.getNextSequenceNumber());
 			packet.setSession(this);
 			packet.setDestinationID(getDestination().getSocketID());
 			int sendlen=Math.min(len,chunksize);
@@ -512,7 +522,7 @@ public abstract class UDTSession {
 				}
 			}while(packet==null);//TODO check timeout...
 			try{
-				packet.setPacketSequenceNumber(getSocket().getSender().getNextSequenceNumber());
+				packet.setPacketSequenceNumber(sender.getNextSequenceNumber());
 				packet.setSession(this);
 				packet.setDestinationID(getDestination().getSocketID());
 				//int len=Math.min(bb.remaining(),chunksize);
@@ -537,16 +547,16 @@ public abstract class UDTSession {
 	 */
 	public void flush() throws InterruptedException{
 		// if(!active)return;
-		final long seqNo=socket.getSender().getCurrentSequenceNumber();
+		final long seqNo=sender.getCurrentSequenceNumber();
 		if(seqNo<0)throw new IllegalStateException();
-		while(!socket.getSender().isSentOut(seqNo)){
+		while(!sender.isSentOut(seqNo)){
 			Thread.sleep(5);
 		}
 		System.out.println("flash seqNo:" + seqNo);
 		if(seqNo>-1){
 			//wait until data has been sent out and acknowledged
-			while(active && !socket.getSender().haveAcknowledgementFor(seqNo)){
-				socket.getSender().waitForAck(seqNo);
+			while(active && !sender.haveAcknowledgementFor(seqNo)){
+				sender.waitForAck(seqNo);
 			}
 		}
 		//TODO need to check if we can pause the sender...
@@ -557,6 +567,11 @@ public abstract class UDTSession {
 		return receiver;
 	}
 
+	public UDTSender getSender() {
+		return sender;
+	}
+
+	
 	protected int doSend(UDTPacket packet)throws IOException{
 		return endPoint.doSend(packet);
 	}

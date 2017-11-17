@@ -33,7 +33,6 @@
 package udt;
 import java.io.IOException;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 /**
@@ -47,8 +46,6 @@ public class UDTSocket {
 
 	private volatile boolean active=true;
 
-	//processing received data
-	private UDTSender sender;
 
 	private final UDTSession session;
 
@@ -61,18 +58,6 @@ public class UDTSocket {
 	 */
 	public UDTSocket(UDTSession session)throws SocketException {
 		this.session=session;
-		this.sender=new UDTSender(session) {
-
-			@Override
-			public void UDTSenderStoped() {
-				System.out.println("UDTSender had stoped");
-			}
-			
-		};
-	}
-
-	public UDTSender getSender() {
-		return sender;
 	}
 
 	public boolean isActive() {
@@ -142,7 +127,7 @@ public class UDTSocket {
 		ByteBuffer bb=ByteBuffer.wrap(data,offset,length);
 		while(bb.remaining()>0){
 			try{
-				sender.sendUdtPacket(bb, timeout, units);
+				session.sender.sendUdtPacket(bb, timeout, units);
 			}catch(Exception ex){
 				ex.printStackTrace();
 			}

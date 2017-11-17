@@ -87,7 +87,7 @@ public class UDTOutputStream extends OutputStream{
 	 * be consumed by the sender thread.
 	 */
 	public void pauseOutput()throws IOException{
-		socket.getSender().pause();
+		// socket.getSender().pause();
 	}
 	
 	

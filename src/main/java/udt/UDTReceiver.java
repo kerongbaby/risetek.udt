@@ -308,7 +308,7 @@ public class UDTReceiver {
 	 */
 	protected void processEXPEvent()throws IOException{
 		if(session.getSocket()==null || !session.getSocket().isActive())return;
-		UDTSender sender=session.getSocket().getSender();
+		UDTSender sender=session.getSender();
 		//put all the unacknowledged packets in the senders loss list
 		sender.putUnacknowledgedPacketsIntoLossList();
 		if(expCount>16 && System.currentTimeMillis()-sessionUpSince > IDLE_TIMEOUT){
@@ -543,7 +543,7 @@ public class UDTReceiver {
 		stopped=true;
 		session.getSocket().close();
 		//stop our sender as well
-		session.getSocket().getSender().stop();
+		session.getSender().stop();
 	}
 
 	public String toString(){

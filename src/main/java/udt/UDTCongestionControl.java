@@ -213,7 +213,7 @@ public class UDTCongestionControl implements CongestionControl {
 			return;
 		}
 
-		long currentMaxSequenceNumber=session.getSocket().getSender().getCurrentSequenceNumber();
+		long currentMaxSequenceNumber=session.getSender().getCurrentSequenceNumber();
 		// 2)If this NAK starts a new congestion epoch
 		if(firstBiggestlossSeqNo>lastDecreaseSeqNo){
 			// -increase inter-packet interval

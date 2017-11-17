@@ -116,14 +116,14 @@ public abstract class UDTSender {
 	
 
 	public UDTSender(UDTSession session){
-		if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");
+		// if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");
 		this.session=session;
 		this.endpoint= session.getEndPoint();
 		statistics=session.getStatistics();
 		senderLossList=new SenderLossList();
 		sendBuffer=new ConcurrentHashMap<Long, byte[]>(session.getFlowWindowSize(),0.75f,2); 
-		lastAckSequenceNumber=session.getInitialSequenceNumber();
-		currentSequenceNumber=session.getInitialSequenceNumber()-1;
+		lastAckSequenceNumber=0;//session.getInitialSequenceNumber();
+		currentSequenceNumber=-1;//session.getInitialSequenceNumber()-1;
 		storeStatistics=Boolean.getBoolean("udt.sender.storeStatistics");
 		initMetrics();
 		doStart();
