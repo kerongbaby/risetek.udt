@@ -64,10 +64,6 @@ public class ServerSession extends UDTSession {
 	@Override
 	public void received(UDTPacket packet, Destination peer){
 		if(null == packet) {
-			if(null == socket)
-				return;
-			if(null == receiver)
-				return;
 			try {
 				receiver.receive(null);
 			} catch (IOException e) {

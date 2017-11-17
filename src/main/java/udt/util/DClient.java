@@ -62,12 +62,6 @@ public class DClient extends Application implements SessionHandlers {
 
 	@Override
 	public boolean onDataReceive(UDTSession session, DataPacket packet) {
-		// System.out.println("data: " + (count++) + " seq:" + dp.getPacketSequenceNumber());
-		if(!session.receiveBuffer.offer(new AppData((packet.getPacketSequenceNumber()-session.getInitialSequenceNumber()), packet.getData()))) {
-			System.out.println("data packet overload");
-			return false;
-		}
-		
 		for(;;) {
 			AppData data;
 			if((data = session.receiveBuffer.poll()) == null)

@@ -62,8 +62,6 @@ public class UDTReceiver {
 
 	private static final Logger logger=Logger.getLogger(UDTReceiver.class.getName());
 
-	private final UDPEndPoint endpoint;
-
 	private final UDTSession session;
 
 	private final UDTStatistics statistics;
@@ -151,7 +149,6 @@ public class UDTReceiver {
 	 */
 	public UDTReceiver(UDTSession session){
 		this.session=session;
-		this.endpoint = session.getEndPoint();
 		this.sessionUpSince=System.currentTimeMillis();
 		this.statistics=session.getStatistics();
 		ackHistoryWindow = new AckHistoryWindow(16);
@@ -182,18 +179,8 @@ public class UDTReceiver {
 	/*
 	 * packets are written by the endpoint
 	 */
-	protected void receive(UDTPacket p)throws IOException {
-		if(storeStatistics)dgReceiveInterval.end();
-		receiverAlgorithm(p);
-		if(storeStatistics)dgReceiveInterval.begin();
-	}
-
-	/**
-	 * receiver algorithm 
-	 * see specification P11.
-	 */
 	private boolean receiverAlgorithmInited = false;
-	private void receiverAlgorithm(UDTPacket packet) throws IOException {
+	protected void receive(UDTPacket p)throws IOException {
 		if(!receiverAlgorithmInited) {
 			nextACK=Util.getCurrentTime()+ackTimerInterval;
 			nextNAK=(long)(Util.getCurrentTime()+1.5*nakTimerInterval);
@@ -201,6 +188,7 @@ public class UDTReceiver {
 			ackInterval=session.getCongestionControl().getAckInterval();
 			receiverAlgorithmInited = true;
 		}
+
 		//check ACK timer
 		long currentTime=Util.getCurrentTime();
 		if(nextACK<currentTime){
@@ -218,39 +206,49 @@ public class UDTReceiver {
 			nextEXP=currentTime+expTimerInterval;
 			processEXPEvent();
 		}
+		if(null == p)
+			return;
+		
+		if(storeStatistics)dgReceiveInterval.end();
+		receiverAlgorithm(p);
+		if(storeStatistics)dgReceiveInterval.begin();
+	}
 
-		if(packet!=null){
-			if(storeStatistics)processTime.begin();
-			//reset exp count to 1
-			expCount=1;
-			//If there is no unacknowledged data packet, or if this is an 
-			//ACK or NAK control packet, reset the EXP timer.
+	/**
+	 * receiver algorithm 
+	 * see specification P11.
+	 */
+	private void receiverAlgorithm(UDTPacket packet) throws IOException {
+		if(storeStatistics)processTime.begin();
+		//reset exp count to 1
+		expCount=1;
+		//If there is no unacknowledged data packet, or if this is an 
+		//ACK or NAK control packet, reset the EXP timer.
 
-			if(packet.isControlPacket()){
-				ControlPacket cp=(ControlPacket)packet;
-				int cpType=cp.getControlPacketType();
-				if(cpType==ControlPacketType.ACK.ordinal() || cpType==ControlPacketType.NAK.ordinal()){
-					nextEXP=Util.getCurrentTime()+expTimerInterval;
-				} else if(cpType == ControlPacketType.ACK2.ordinal()) {
-					Acknowledgment2 ack2=(Acknowledgment2)packet;
-					onAck2PacketReceived(ack2);
-				} else if (packet instanceof Shutdown){
-					onShutdown();
-				}
-			} else {
-				DataPacket dp=(DataPacket)packet;
-				if(storeStatistics){
-					dataPacketInterval.end();
-					dataProcessTime.begin();
-				}
-				onDataPacketReceived(dp);
-				if(storeStatistics){
-					dataProcessTime.end();
-					dataPacketInterval.begin();
-				}
+		if(packet.isControlPacket()){
+			ControlPacket cp=(ControlPacket)packet;
+			int cpType=cp.getControlPacketType();
+			if(cpType==ControlPacketType.ACK.ordinal() || cpType==ControlPacketType.NAK.ordinal()){
+				nextEXP=Util.getCurrentTime()+expTimerInterval;
+			} else if(cpType == ControlPacketType.ACK2.ordinal()) {
+				Acknowledgment2 ack2=(Acknowledgment2)packet;
+				onAck2PacketReceived(ack2);
+			} else if (packet instanceof Shutdown){
+				onShutdown();
 			}
-			if(storeStatistics)processTime.end();
+		} else {
+			DataPacket dp=(DataPacket)packet;
+			if(storeStatistics){
+				dataPacketInterval.end();
+				dataProcessTime.begin();
+			}
+			onDataPacketReceived(dp);
+			if(storeStatistics){
+				dataProcessTime.end();
+				dataPacketInterval.begin();
+			}
 		}
+		if(storeStatistics)processTime.end();
 	}
 
 	/**
@@ -334,6 +332,12 @@ public class UDTReceiver {
 	private int n=0;
 	
 	protected void onDataPacketReceived(DataPacket dp)throws IOException{
+		if(!session.onDataPacketReceived(dp)) {
+			//need to drop packet...
+			System.out.println("drop packet");
+			return;
+		}
+
 		long currentSequenceNumber = dp.getPacketSequenceNumber();
 		
 		//for TESTING : check whether to drop this packet
@@ -352,12 +356,6 @@ public class UDTReceiver {
 			return;
 		}
 		*/
-		
-		if(!session.onDataPacketReceived(dp)) {
-			//need to drop packet...
-			System.out.println("drop packet");
-			return;
-		}
 		
 		long currentDataPacketArrivalTime = Util.getCurrentTime();
 
@@ -421,7 +419,7 @@ public class UDTReceiver {
 			ReceiverLossListEntry detectedLossSeqNumber= new ReceiverLossListEntry(i);
 			receiverLossList.insert(detectedLossSeqNumber);
 		}
-		endpoint.doSend(nAckPacket);
+		session.doSend(nAckPacket);
 		//logger.info("NAK for "+currentSequenceNumber);
 		statistics.incNumberOfNAKSent();
 	}
@@ -432,13 +430,13 @@ public class UDTReceiver {
 		nAckPacket.addLossInfo(sequenceNumbers);
 		nAckPacket.setSession(session);
 		nAckPacket.setDestinationID(session.getDestination().getSocketID());
-		endpoint.doSend(nAckPacket);
+		session.doSend(nAckPacket);
 		statistics.incNumberOfNAKSent();
 	}
 
 	protected long sendLightAcknowledgment(long ackNumber)throws IOException{
 		Acknowledgement acknowledgmentPkt=buildLightAcknowledgement(ackNumber);
-		endpoint.doSend(acknowledgmentPkt);
+		session.doSend(acknowledgmentPkt);
 		statistics.incNumberOfACKSent();
 		return acknowledgmentPkt.getAckSequenceNumber();
 	}
@@ -452,7 +450,7 @@ public class UDTReceiver {
 		packetArrivalSpeed=packetHistoryWindow.getPacketArrivalSpeed();
 		acknowledgmentPkt.setPacketReceiveRate(packetArrivalSpeed);
 
-		endpoint.doSend(acknowledgmentPkt);
+		session.doSend(acknowledgmentPkt);
 
 		statistics.incNumberOfACKSent();
 		statistics.setPacketArrivalRate(packetArrivalSpeed, estimateLinkCapacity);
@@ -510,14 +508,14 @@ public class UDTReceiver {
 		KeepAlive ka=new KeepAlive();
 		ka.setDestinationID(session.getDestination().getSocketID());
 		ka.setSession(session);
-		endpoint.doSend(ka);
+		session.doSend(ka);
 	}
 
 	protected void sendShutdown()throws IOException{
 		Shutdown s=new Shutdown();
 		s.setDestinationID(session.getDestination().getSocketID());
 		s.setSession(session);
-		endpoint.doSend(s);
+		session.doSend(s);
 	}
 
 	private volatile long ackSequenceNumber=0;

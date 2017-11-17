@@ -254,7 +254,6 @@ public class UDPEndPoint {
 							session.received(packet,peer);
 						}
 						else if(packet.isConnectionHandshake()){
-							System.out.println("isConnectionHandshake");
 							Destination p=new Destination(peer.getAddress(),peer.getPort());
 							session=sessionsBeingConnected.get(peer);
 							long destID=packet.getDestinationID();

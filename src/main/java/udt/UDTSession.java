@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import udt.UDTInputStream.AppData;
 import udt.packets.ConnectionHandshake;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
@@ -163,6 +164,12 @@ public abstract class UDTSession {
 	public abstract void received(UDTPacket packet, Destination peer);
 	
 	public final boolean onDataPacketReceived(DataPacket packet) {
+		
+		if(!receiveBuffer.offer(new AppData((packet.getPacketSequenceNumber()-getInitialSequenceNumber()), packet.getData()))) {
+			System.out.println("data packet overload");
+			return false;
+		}
+		
 		if(null != sessionHandlers)
 			return sessionHandlers.onDataReceive(this, packet);
 		return false;
@@ -194,14 +201,6 @@ public abstract class UDTSession {
 		return state==ready;
 	}
 
-	public boolean isActive() {
-		return active == true;
-	}
-
-	public void setActive(boolean active) {
-		this.active = active;
-	}
-	
 	public boolean isShutdown(){
 		return state==shutdown || state==invalid;
 	}
@@ -267,7 +266,6 @@ public abstract class UDTSession {
 			shutdown.setSession(this);
 			endPoint.doSend(shutdown);
 			receiver.stop();
-			System.out.println("stop session");
 			endPoint.stop();
 		}
 	}
@@ -559,5 +557,7 @@ public abstract class UDTSession {
 		return receiver;
 	}
 
-
+	protected int doSend(UDTPacket packet)throws IOException{
+		return endPoint.doSend(packet);
+	}
 }
