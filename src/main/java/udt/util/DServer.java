@@ -1,29 +1,22 @@
 
 package udt.util;
-
-import java.io.OutputStream;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.text.NumberFormat;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Logger;
-
-import udt.UDTOutputStream;
+import udt.SessionHandlers;
 import udt.UDTReceiver;
 import udt.UDTServerSocket;
 import udt.UDTSession;
+import udt.packets.DataPacket;
 
 
 /**
  * 一个随机发送1M字节的服务端程序，用于调试和测量目的
  */
-public class DServer extends Application{
+public class DServer extends Application {
 
 	private final int serverPort;
 	private final static int numberPackets = 1024;
-
-	//TODO configure pool size
-	private final ExecutorService threadPool=Executors.newFixedThreadPool(3);
 
 	public DServer(int serverPort){
 		this.serverPort=serverPort;
@@ -43,7 +36,9 @@ public class DServer extends Application{
 			while(true){
 				UDTSession session=server.accept();
 				System.out.println("session accepted");
-				threadPool.execute(new RequestRunner(session));
+				RequestRunner runner = new RequestRunner(session);
+				session.registeSessionHandlers(runner);
+				// threadPool.execute(runner);
 			}
 		}catch(Exception ex){
 			throw new RuntimeException(ex);
@@ -61,54 +56,75 @@ public class DServer extends Application{
 		sf.run();
 	}
 
-	public static class RequestRunner implements Runnable{
-
-		private final static Logger logger=Logger.getLogger(RequestRunner.class.getName());
+	public static class RequestRunner implements SessionHandlers{
 
 		private final UDTSession session;
 
 		private final NumberFormat format=NumberFormat.getNumberInstance();
 
+		byte[]buf=new byte[1024];
+
+		long period = System.currentTimeMillis();
+		
 		public RequestRunner(UDTSession session){
 			this.session=session;
 			format.setMaximumFractionDigits(3);
 		}
 
-		public void run(){
-			try{
-				logger.info("Handling request from "+session.getDestination());
-				System.out.println("begin sending data.");
-				UDTOutputStream out=session.getSocket().getOutputStream();
-				
-				try{
-					long start=System.currentTimeMillis();
-					//and send the file
-					sendDatas(session, out);
-
+		private int sendCounter = 0;
+		@Override
+		public void onDataRequest() {
+			for(;;) 
+			{
+				if(sendCounter >= numberPackets) {
+					System.out.println("end of sending");
+/*
+					try {
+						session.getSocket().flush();
+						session.getSocket().getSender().stop();
+						session.getSocket().close();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+	
 					System.out.println(" Finished sending data.");
-					long end=System.currentTimeMillis();
 					System.out.println(session.getStatistics().toString());
-					double rate=1000.0*numberPackets*1024/1024/1024/(end-start);
-					System.out.println("[SendFile] Rate: "+format.format(rate)+" MBytes/sec. "+format.format(8*rate)+" MBit/sec.");
-				}finally{
-					session.getSocket().getSender().stop();
-					session.getSocket().close();
+	
+					period = System.currentTimeMillis() - period;
+					double rate=1000.0*numberPackets*1024/1024/1024/period;
+					System.out.println("[Send Packet] Rate: "+format.format(rate)+" MBytes/sec.");
+*/
+					return;
 				}
-				logger.info("Finished request from "+session.getDestination());
-			}catch(Exception ex){
-				ex.printStackTrace();
-				throw new RuntimeException(ex);
+	
+				// System.out.println("request to send:" + sendCounter);
+				try {
+					int len;
+					if((len = session.write(buf, 1024)) < 1024) {
+						System.out.println("short send: " + len + "/1024");
+						break;
+					} else
+						sendCounter++;
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
-	}
 
-	private static void sendDatas(UDTSession session, OutputStream os)throws Exception{
-		byte[]buf=new byte[1024];
-		for(int looper = 0; looper < numberPackets; looper++) {
-			System.out.print(" " + looper);
-			os.write(buf, 0, 1024);
+		@Override
+		public boolean onDataReceive(UDTSession session, DataPacket packet) {
+			System.out.println("datas coming...");
+			return false;
 		}
-		session.getSocket().flush();
-//		os.flush();
-	}	
+
+		@Override
+		public void onShutdown() {
+			System.out.println("sesion shutdown");
+		}
+	}
 }

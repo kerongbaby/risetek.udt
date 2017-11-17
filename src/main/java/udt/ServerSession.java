@@ -120,10 +120,5 @@ public class ServerSession extends UDTSession {
 	public void connected() {
 		System.out.println("server socket connected");
 	}
-
-	@Override
-	public void requestSend() {
-		System.out.println("need data to send");
-	}
 }
 

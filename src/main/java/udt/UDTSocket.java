@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class UDTSocket {
 
-	private volatile boolean active;
+	private volatile boolean active=true;
 
 	//processing received data
 	private UDTReceiver receiver;
@@ -161,7 +161,7 @@ public class UDTSocket {
 	 * and acknowledged
 	 */
 	public void flush() throws InterruptedException{
-		if(!active)return;
+		// if(!active)return;
 		final long seqNo=sender.getCurrentSequenceNumber();
 		if(seqNo<0)throw new IllegalStateException();
 		while(!sender.isSentOut(seqNo)){

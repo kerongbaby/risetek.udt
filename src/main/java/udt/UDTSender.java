@@ -81,8 +81,6 @@ public abstract class UDTSender {
 	//sendBuffer stores the sent data packets and their sequence numbers
 	private final Map<Long,byte[]>sendBuffer;
 
-	private final FlowWindow flowWindow;
-
 	//thread reading packets from send queue and sending them
 	private Thread senderThread;
 
@@ -116,8 +114,7 @@ public abstract class UDTSender {
 
 	private final boolean storeStatistics;
 	
-	private final int chunksize;
-	
+
 	public UDTSender(UDTSession session){
 		if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");
 		this.session=session;
@@ -125,8 +122,6 @@ public abstract class UDTSender {
 		statistics=session.getStatistics();
 		senderLossList=new SenderLossList();
 		sendBuffer=new ConcurrentHashMap<Long, byte[]>(session.getFlowWindowSize(),0.75f,2); 
-		chunksize=session.getDatagramSize()-24;//need space for the header;
-		flowWindow=new FlowWindow(session.getFlowWindowSize(),chunksize);
 		lastAckSequenceNumber=session.getInitialSequenceNumber();
 		currentSequenceNumber=session.getInitialSequenceNumber()-1;
 		storeStatistics=Boolean.getBoolean("udt.sender.storeStatistics");
@@ -163,8 +158,9 @@ public abstract class UDTSender {
 				try{
 					while(!stopped){
 						//wait until explicitely (re)started
-						startLatch.await();
+						// startLatch.await();
 						paused=false;
+						System.out.println("sender ing");
 						senderAlgorithm();
 					}
 				}catch(InterruptedException ie){
@@ -221,7 +217,7 @@ public abstract class UDTSender {
 		if(!started)start();
 		DataPacket packet=null;
 		do{
-			packet=flowWindow.getForProducer();
+			packet=session.flowWindow.getForProducer();
 			if(packet==null){
 				Thread.sleep(10);
 			}
@@ -230,12 +226,12 @@ public abstract class UDTSender {
 			packet.setPacketSequenceNumber(getNextSequenceNumber());
 			packet.setSession(session);
 			packet.setDestinationID(session.getDestination().getSocketID());
-			int len=Math.min(bb.remaining(),chunksize);
+			int len=Math.min(bb.remaining(),session.chunksize);
 			byte[] data=packet.getData();
 			bb.get(data,0,len);
 			packet.setLength(len);
 		}finally{
-			flowWindow.produce();
+			session.flowWindow.produce();
 		}
 
 	}
@@ -254,7 +250,7 @@ public abstract class UDTSender {
 		if(!started)start();
 		DataPacket packet=null;
 		do{
-			packet=flowWindow.getForProducer();
+			packet=session.flowWindow.getForProducer();
 			if(packet==null){
 				Thread.sleep(10);
 				//	System.out.println("queue full: "+flowWindow);
@@ -266,7 +262,7 @@ public abstract class UDTSender {
 			packet.setDestinationID(session.getDestination().getSocketID());
 			packet.setData(data);
 		}finally{
-			flowWindow.produce();
+			session.flowWindow.produce();
 		}
 	}
 
@@ -366,7 +362,7 @@ public abstract class UDTSender {
 	long iterationStart;
 	public void senderAlgorithm()throws InterruptedException, IOException{
 		while(!paused){
-			if(stopped && flowWindow.isEmpty()) {
+			if(stopped && session.flowWindow.isEmpty()) {
 				System.out.println("end of senderAlgorithm");
 				return;
 			}
@@ -386,13 +382,14 @@ public abstract class UDTSender {
 				if(unAcknowledged<session.getCongestionControl().getCongestionWindowSize()
 						&& unAcknowledged<session.getFlowWindowSize()){
 					//check for application data
-					DataPacket dp=flowWindow.consumeData();
+					DataPacket dp=session.flowWindow.consumeData();
 					if(dp!=null){
 						send(dp);
 						largestSentSequenceNumber=dp.getPacketSequenceNumber();
 					}
 					else{
-						session.requestSend();
+						if(null != session.sessionHandlers)
+							session.sessionHandlers.onDataRequest();
 						statistics.incNumberOfMissingDataEvents();
 					}
 				}else{

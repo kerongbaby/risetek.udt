@@ -49,7 +49,9 @@ public class ReceiverLossListEntry implements Comparable<ReceiverLossListEntry> 
 	 */
 	public ReceiverLossListEntry(long sequenceNumber){
 		// TODO: sequenceNumber may be to 0 ?
-		if(sequenceNumber<=0){
+		if(sequenceNumber==0)
+			System.out.println("Got sequence number "+sequenceNumber);
+		if(sequenceNumber<0){
 			throw new IllegalArgumentException("Got sequence number "+sequenceNumber);
 		}
 		this.sequenceNumber = sequenceNumber;	

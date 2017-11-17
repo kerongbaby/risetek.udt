@@ -34,7 +34,9 @@ package udt;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.nio.ByteBuffer;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,6 +45,7 @@ import udt.packets.ConnectionHandshake;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
 import udt.packets.Shutdown;
+import udt.sender.FlowWindow;
 import udt.util.ReceiveBuffer;
 import udt.util.SequenceNumber;
 import udt.util.UDTStatistics;
@@ -86,8 +89,10 @@ public abstract class UDTSession {
 	 * flow window size, i.e. how many data packets are
 	 * in-flight at a single time
 	 */
-	protected int flowWindowSize=1024*10;
+	protected int flowWindowSize=256;//1024*10;
 
+	public final FlowWindow flowWindow;
+	
 	/**
 	 * remote UDT entity (address and socket ID)
 	 */
@@ -125,6 +130,8 @@ public abstract class UDTSession {
 		this.sessionHandlers = sessionHandlers;
 	}
 	
+	final int chunksize;
+	
 	public UDTSession(String description, Destination destination, UDPEndPoint endPoint){
 		this.endPoint = endPoint;
 		statistics=new UDTStatistics(description);
@@ -146,6 +153,8 @@ public abstract class UDTSession {
 		int capacity= 2 * getFlowWindowSize();
 		//long initialSequenceNum = getInitialSequenceNumber();
 		receiveBuffer=new ReceiveBuffer(capacity,0);
+		chunksize=getDatagramSize()-24;//need space for the header;
+		flowWindow=new FlowWindow(getFlowWindowSize(),chunksize);
 	}
 	
 	
@@ -156,8 +165,6 @@ public abstract class UDTSession {
 			return sessionHandlers.onDataReceive(this, packet);
 		return false;
 	}
-	
-	public abstract void requestSend();
 	
 	public UDTSocket getSocket() {
 		return socket;
@@ -468,4 +475,60 @@ public abstract class UDTSession {
 		return sb.toString();
 	}
 	
+
+	public int write(byte[] b, int len) throws IOException {
+		// checkClosed();
+		//socket.doWrite(b, 0, len);
+		//return len;
+		
+		
+		DataPacket packet = flowWindow.getForProducer();
+		if(packet==null)
+			return 0;
+
+		try{
+			packet.setPacketSequenceNumber(getSocket().getSender().getNextSequenceNumber());
+			packet.setSession(this);
+			packet.setDestinationID(getDestination().getSocketID());
+			int sendlen=Math.min(len,chunksize);
+			packet.setData(b);
+			packet.setLength(sendlen);
+		}finally{
+			flowWindow.produce();
+		}
+		return len;
+	}
+
+	public int oldwrite(byte[] b, int len) throws IOException {
+		// checkClosed();
+		try {
+//			socket.doWrite(b, 0, len, 10, TimeUnit.MILLISECONDS);
+			
+			DataPacket packet=null;
+			do{
+				packet=flowWindow.getForProducer();
+				if(packet==null){
+					Thread.sleep(10);
+				}
+			}while(packet==null);//TODO check timeout...
+			try{
+				packet.setPacketSequenceNumber(getSocket().getSender().getNextSequenceNumber());
+				packet.setSession(this);
+				packet.setDestinationID(getDestination().getSocketID());
+				//int len=Math.min(bb.remaining(),chunksize);
+				//byte[] data=packet.getData();
+				//bb.get(data,0,len);
+				packet.setData(b);
+				//packet.setLength(len);
+			}finally{
+				flowWindow.produce();
+			}
+			
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		return len;
+	}
+
 }

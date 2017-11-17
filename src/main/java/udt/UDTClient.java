@@ -69,12 +69,6 @@ public abstract class UDTClient extends UDPEndPoint {
 				logger.info("The UDTClient is connected");
 				UDTClientConnected(this);
 			}
-
-			@Override
-			public void requestSend() {
-				// do nothing
-			}
-			
 		};
 		addSession(clientSession.getSocketID(), clientSession);
 		clientSession.connect();
