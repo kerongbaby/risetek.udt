@@ -156,6 +156,7 @@ public abstract class UDTSession {
 		receiveBuffer=new ReceiveBuffer(capacity,0);
 		chunksize=getDatagramSize()-24;//need space for the header;
 		flowWindow=new FlowWindow(getFlowWindowSize(),chunksize);
+		receiver=new UDTReceiver(this);
 	}
 	
 	
@@ -265,7 +266,7 @@ public abstract class UDTSession {
 			shutdown.setDestinationID(getDestination().getSocketID());
 			shutdown.setSession(this);
 			endPoint.doSend(shutdown);
-			getReceiver().stop();
+			receiver.stop();
 			System.out.println("stop session");
 			endPoint.stop();
 		}

@@ -66,11 +66,11 @@ public class ServerSession extends UDTSession {
 		if(null == packet) {
 			if(null == socket)
 				return;
-			if(null == getReceiver())
+			if(null == receiver)
 				return;
 			try {
-				getReceiver().receive(null);
-			} catch (IOException | InterruptedException e) {
+				receiver.receive(null);
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			return;
@@ -82,14 +82,14 @@ public class ServerSession extends UDTSession {
 		}
 
 		if(packet instanceof KeepAlive) {
-			getReceiver().resetEXPTimer();
+			receiver.resetEXPTimer();
 			active = true;
 			return;
 		}
 
 		if (packet instanceof Shutdown) {
 			try{
-				getReceiver().stop();
+				receiver.stop();
 			}catch(IOException ex){
 				logger.log(Level.WARNING,"",ex);
 			}
@@ -105,7 +105,7 @@ public class ServerSession extends UDTSession {
 				if(packet.forSender()){
 					socket.getSender().receive(packet);
 				}else{
-					getReceiver().receive(packet);
+					receiver.receive(packet);
 				}
 			}catch(Exception ex){
 				//session invalid

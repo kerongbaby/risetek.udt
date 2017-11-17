@@ -81,7 +81,7 @@ public class UDTReceiver {
 	private volatile long lastDataPacketArrivalTime=0;
 
 	//largest received data packet sequence number(LRSN)
-	private volatile long largestReceivedSeqNumber=0;
+	private volatile long largestReceivedSeqNumber=-1;
 
 	//ACK event related
 
@@ -154,16 +154,13 @@ public class UDTReceiver {
 		this.endpoint = session.getEndPoint();
 		this.sessionUpSince=System.currentTimeMillis();
 		this.statistics=session.getStatistics();
-		if(!session.isReady())throw new IllegalStateException("UDTSession is not ready.");
 		ackHistoryWindow = new AckHistoryWindow(16);
 		packetHistoryWindow = new PacketHistoryWindow(16);
 		receiverLossList = new ReceiverLossList();
 		packetPairWindow = new PacketPairWindow(16);
-		largestReceivedSeqNumber=session.getInitialSequenceNumber()-1;
 		bufferSize=session.getReceiveBufferSize();
 		storeStatistics=Boolean.getBoolean("udt.receiver.storeStatistics");
 		initMetrics();
-		// start();
 	}
 	
 	private MeanValue dgReceiveInterval;
@@ -185,7 +182,7 @@ public class UDTReceiver {
 	/*
 	 * packets are written by the endpoint
 	 */
-	protected void receive(UDTPacket p)throws IOException, InterruptedException{
+	protected void receive(UDTPacket p)throws IOException {
 		if(storeStatistics)dgReceiveInterval.end();
 		receiverAlgorithm(p);
 		if(storeStatistics)dgReceiveInterval.begin();
@@ -196,7 +193,7 @@ public class UDTReceiver {
 	 * see specification P11.
 	 */
 	private boolean receiverAlgorithmInited = false;
-	public void receiverAlgorithm(UDTPacket packet) throws IOException, InterruptedException{
+	private void receiverAlgorithm(UDTPacket packet) throws IOException {
 		if(!receiverAlgorithmInited) {
 			nextACK=Util.getCurrentTime()+ackTimerInterval;
 			nextNAK=(long)(Util.getCurrentTime()+1.5*nakTimerInterval);

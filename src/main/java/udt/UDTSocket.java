@@ -61,7 +61,6 @@ public class UDTSocket {
 	 */
 	public UDTSocket(UDTSession session)throws SocketException {
 		this.session=session;
-		this.session.receiver=new UDTReceiver(session);
 		this.sender=new UDTSender(session) {
 
 			@Override
