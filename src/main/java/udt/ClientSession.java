@@ -109,10 +109,10 @@ public abstract class ClientSession extends UDTSession {
 		if(null == packet) {
 			if(null == socket)
 				return;
-			if(null == socket.getReceiver())
+			if(null == getReceiver())
 				return;
 			try {
-				socket.getReceiver().receive(null);
+				getReceiver().receive(null);
 			} catch (IOException | InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -137,7 +137,7 @@ public abstract class ClientSession extends UDTSession {
 				if(packet.forSender()){
 					socket.getSender().receive(packet);
 				}else{
-					socket.getReceiver().receive(packet);
+					getReceiver().receive(packet);
 				}
 			}catch(Exception ex){
 				//session is invalid

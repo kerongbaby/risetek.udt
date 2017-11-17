@@ -277,7 +277,7 @@ public abstract class UDTSender {
 			onNAKPacketReceived(nak);
 		}
 		else if (p instanceof KeepAlive) {
-			session.getSocket().getReceiver().resetEXPCount();
+			session.getReceiver().resetEXPCount();
 		}
 	}
 
@@ -330,7 +330,7 @@ public abstract class UDTSender {
 			senderLossList.insert(Long.valueOf(i));
 		}
 		session.getCongestionControl().onLoss(nak.getDecodedLossInfo());
-		session.getSocket().getReceiver().resetEXPTimer();
+		session.getReceiver().resetEXPTimer();
 		statistics.incNumberOfNAKReceived();
 
 		if(logger.isLoggable(Level.FINER)){

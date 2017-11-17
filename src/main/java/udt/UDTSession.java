@@ -72,6 +72,7 @@ public abstract class UDTSession {
 	public static final int invalid=99;
 
 	protected volatile UDTSocket socket;
+	public UDTReceiver receiver;
 	
 	protected final UDTStatistics statistics;
 	
@@ -264,7 +265,7 @@ public abstract class UDTSession {
 			shutdown.setDestinationID(getDestination().getSocketID());
 			shutdown.setSession(this);
 			endPoint.doSend(shutdown);
-			getSocket().getReceiver().stop();
+			getReceiver().stop();
 			System.out.println("stop session");
 			endPoint.stop();
 		}
@@ -530,5 +531,32 @@ public abstract class UDTSession {
 		
 		return len;
 	}
+
+	/**
+	 * will block until the outstanding packets have really been sent out
+	 * and acknowledged
+	 */
+	public void flush() throws InterruptedException{
+		// if(!active)return;
+		final long seqNo=socket.getSender().getCurrentSequenceNumber();
+		if(seqNo<0)throw new IllegalStateException();
+		while(!socket.getSender().isSentOut(seqNo)){
+			Thread.sleep(5);
+		}
+		System.out.println("flash seqNo:" + seqNo);
+		if(seqNo>-1){
+			//wait until data has been sent out and acknowledged
+			while(active && !socket.getSender().haveAcknowledgementFor(seqNo)){
+				socket.getSender().waitForAck(seqNo);
+			}
+		}
+		//TODO need to check if we can pause the sender...
+		//sender.pause();
+	}
+
+	public UDTReceiver getReceiver() {
+		return receiver;
+	}
+
 
 }

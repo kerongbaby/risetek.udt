@@ -48,7 +48,6 @@ public class UDTSocket {
 	private volatile boolean active=true;
 
 	//processing received data
-	private UDTReceiver receiver;
 	private UDTSender sender;
 
 	private final UDTSession session;
@@ -60,9 +59,9 @@ public class UDTSocket {
 	 * @param endpoint
 	 * @throws SocketException,UnknownHostException
 	 */
-	public UDTSocket(UDTSession session)throws SocketException,UnknownHostException{
+	public UDTSocket(UDTSession session)throws SocketException {
 		this.session=session;
-		this.receiver=new UDTReceiver(session);
+		this.session.receiver=new UDTReceiver(session);
 		this.sender=new UDTSender(session) {
 
 			@Override
@@ -71,10 +70,6 @@ public class UDTSocket {
 			}
 			
 		};
-	}
-
-	public UDTReceiver getReceiver() {
-		return receiver;
 	}
 
 	public UDTSender getSender() {
@@ -156,32 +151,11 @@ public class UDTSocket {
 		if(length>0)active=true;
 	}
 
-	/**
-	 * will block until the outstanding packets have really been sent out
-	 * and acknowledged
-	 */
-	public void flush() throws InterruptedException{
-		// if(!active)return;
-		final long seqNo=sender.getCurrentSequenceNumber();
-		if(seqNo<0)throw new IllegalStateException();
-		while(!sender.isSentOut(seqNo)){
-			Thread.sleep(5);
-		}
-		System.out.println("flash seqNo:" + seqNo);
-		if(seqNo>-1){
-			//wait until data has been sent out and acknowledged
-			while(active && !sender.haveAcknowledgementFor(seqNo)){
-				sender.waitForAck(seqNo);
-			}
-		}
-		//TODO need to check if we can pause the sender...
-		//sender.pause();
-	}
 
 	//writes and wait for ack
 	protected void doWriteBlocking(byte[]data)throws IOException, InterruptedException{
 		doWrite(data);
-		flush();
+		session.flush();
 	}
 
 	/**
