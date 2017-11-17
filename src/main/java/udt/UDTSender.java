@@ -167,8 +167,6 @@ public class UDTSender {
 				catch(IOException ex){
 					ex.printStackTrace();
 					logger.log(Level.SEVERE,"",ex);
-				} finally {
-					System.out.println("stoped");
 				}
 				logger.info("STOPPING SENDER for "+session);
 			}
@@ -375,14 +373,14 @@ public class UDTSender {
 				if(unAcknowledged<session.getCongestionControl().getCongestionWindowSize()
 						&& unAcknowledged<session.getFlowWindowSize()){
 					//check for application data
+					if(null != session.sessionHandlers)
+						session.sessionHandlers.onDataRequest();
 					DataPacket dp=session.flowWindow.consumeData();
 					if(dp!=null){
 						send(session, dp);
 						largestSentSequenceNumber=dp.getPacketSequenceNumber();
 					}
 					else{
-						if(null != session.sessionHandlers)
-							session.sessionHandlers.onDataRequest();
 						statistics.incNumberOfMissingDataEvents();
 					}
 				}else{
@@ -532,10 +530,5 @@ public class UDTSender {
 
 	public void stop(){
 		stopped=true;
-	}
-
-	public void pause(){
-		startLatch=new CountDownLatch(1);
-		paused=true;
 	}
 }

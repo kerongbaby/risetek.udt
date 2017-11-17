@@ -452,11 +452,6 @@ public abstract class UDTSession {
 	
 
 	public int write(byte[] b, int len) throws IOException {
-		// checkClosed();
-		//socket.doWrite(b, 0, len);
-		//return len;
-		
-		
 		DataPacket packet = flowWindow.getForProducer();
 		if(packet==null)
 			return 0;
@@ -471,38 +466,6 @@ public abstract class UDTSession {
 		}finally{
 			flowWindow.produce();
 		}
-		return len;
-	}
-
-	public int oldwrite(byte[] b, int len) throws IOException {
-		// checkClosed();
-		try {
-//			socket.doWrite(b, 0, len, 10, TimeUnit.MILLISECONDS);
-			
-			DataPacket packet=null;
-			do{
-				packet=flowWindow.getForProducer();
-				if(packet==null){
-					Thread.sleep(10);
-				}
-			}while(packet==null);//TODO check timeout...
-			try{
-				packet.setPacketSequenceNumber(sender.getNextSequenceNumber());
-				packet.setSession(this);
-				packet.setDestinationID(getDestination().getSocketID());
-				//int len=Math.min(bb.remaining(),chunksize);
-				//byte[] data=packet.getData();
-				//bb.get(data,0,len);
-				packet.setData(b);
-				//packet.setLength(len);
-			}finally{
-				flowWindow.produce();
-			}
-			
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
 		return len;
 	}
 

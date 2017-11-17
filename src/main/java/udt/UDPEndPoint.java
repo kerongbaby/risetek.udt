@@ -253,6 +253,12 @@ public abstract class UDPEndPoint {
 						else{
 							logger.warning("Unknown session <"+dest+"> requested from <"+peer+"> packet type "+packet.getClass().getName());
 						}
+						
+						if(session.getState() == UDTSession.shutdown) {
+							if(null != session.sessionHandlers)
+								session.sessionHandlers.onSessionEnd(session);
+							sessions.remove(session.getSocketID());
+						}
 					}catch(SocketException ex){
 						logger.log(Level.INFO, "SocketException: "+ex.getMessage());
 					}catch(SocketTimeoutException ste){

@@ -40,7 +40,6 @@ public class DServer {
 	}
 
 	public static class RequestRunner implements SessionHandlers{
-
 		private final UDTSession session;
 
 		private final NumberFormat format=NumberFormat.getNumberInstance();
@@ -92,7 +91,12 @@ public class DServer {
 
 		@Override
 		public void onSessionEnd(UDTSession session) {
-			System.out.println("session end");
+			System.out.println(session.getStatistics());
+			NumberFormat format = NumberFormat.getNumberInstance();
+			format.setMaximumFractionDigits(3);
+			period = System.currentTimeMillis() - period;
+			double rate=1000.0 / period;
+			System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 		}
 	}
 }
