@@ -23,7 +23,7 @@ public class DServer {
 			new UDTServerSocket(18008){
 
 				@Override
-				public void onSessionAccept(UDTSession session) {
+				public void onSessionReady(UDTSession session) {
 					System.out.println("new session accept!!!!!");
 					RequestRunner runner = new RequestRunner(session);
 					session.registeSessionHandlers(runner);
@@ -58,16 +58,13 @@ public class DServer {
 		public void onDataRequest() {
 			for(;;) 
 			{
-				if(sendCounter >= numberPackets) {
-					// System.out.println("end of sending");
+				if(sendCounter >= numberPackets)
 					return;
-				}
 	
 				// System.out.println("request to send:" + sendCounter);
 				try {
-					int len;
-					if((len = session.write(buf, 1024)) < 1024) {
-						System.out.println("short send: " + len + "/1024");
+					if(session.write(buf, 1024) < 1024) {
+						System.out.println("short send at: " + sendCounter);
 						break;
 					} else
 						sendCounter++;

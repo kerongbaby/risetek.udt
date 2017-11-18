@@ -51,8 +51,6 @@ import udt.util.UDTStatistics;
 public abstract class UDTSession {
 
 	private static final Logger logger=Logger.getLogger(UDTSession.class.getName());
-	public abstract void connected();
-	
 
 	private final UDPEndPoint endPoint;
 
@@ -395,7 +393,9 @@ public abstract class UDTSession {
 				//TODO validate parameters sent by peer
 				setState(ready);
 				cc.init();
-				connected();
+				// This is for ClientSession
+//				connected();
+				endPoint.onSessionReady(this);
 			}catch(Exception ex){
 				logger.log(Level.WARNING,"Error creating socket",ex);
 				setState(invalid);
@@ -431,6 +431,8 @@ public abstract class UDTSession {
 					logger.info("Client/Server handshake complete!");
 					setState(ready);
 					cc.init();
+					// This is for ServerSession
+					endPoint.onSessionReady(this);
 				}
 			}catch(IOException ex){
 				//session invalid
@@ -502,5 +504,12 @@ public abstract class UDTSession {
 	
 	protected int doSend(UDTPacket packet)throws IOException{
 		return endPoint.doSend(this, packet);
+	}
+
+	public void onDataRequest() {
+		if(null == sessionHandlers)
+			return;
+		if(flowWindow.isLow())
+			sessionHandlers.onDataRequest();
 	}
 }

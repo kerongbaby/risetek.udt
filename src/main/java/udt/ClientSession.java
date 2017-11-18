@@ -47,7 +47,7 @@ import udt.packets.Shutdown;
  * Client side of a client-server UDT connection. 
  * Once established, the session provides a valid.
  */
-public abstract class ClientSession extends UDTSession {
+public class ClientSession extends UDTSession {
 
 	private static final Logger logger=Logger.getLogger(ClientSession.class.getName());
 

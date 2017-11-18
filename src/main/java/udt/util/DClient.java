@@ -35,16 +35,11 @@ public class DClient extends Application implements SessionHandlers {
 		DClient dclient = new DClient();
 		
 		InetAddress myHost=InetAddress.getLocalHost();
-		UDTClient client=new UDTClient(myHost,0) {
+		UDTClient client=new UDTClient(myHost) {
 			@Override
-			public void UDTClientConnected(UDTSession session) {
+			public void onSessionReady(UDTSession session) {
 				dclient.time_passed = System.currentTimeMillis();
 				session.registeSessionHandlers(dclient);
-			}
-
-			@Override
-			public void onSessionAccept(UDTSession session) {
-				System.out.println("should not happen.");
 			}
 		};
 		

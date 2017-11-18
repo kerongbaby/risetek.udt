@@ -82,7 +82,7 @@ public abstract class UDPEndPoint {
 
 	public static final int DATAGRAM_SIZE=1400;
 
-	public abstract void onSessionAccept(UDTSession session);
+	public abstract void onSessionReady(UDTSession session);
 	/**
 	 * bind to any local port on the given host address
 	 * @param localAddress
@@ -224,6 +224,12 @@ public abstract class UDPEndPoint {
 						if(session!=null){
 							//dispatch to existing session
 							session.received(packet,peer);
+
+							if(session.getState() == UDTSession.shutdown) {
+								if(null != session.sessionHandlers)
+									session.sessionHandlers.onSessionEnd(session);
+								sessions.remove(session.getSocketID());
+							}
 						}
 						else if(packet.isConnectionHandshake()){
 							Destination p=new Destination(peer.getAddress(),peer.getPort());
@@ -239,7 +245,7 @@ public abstract class UDPEndPoint {
 								sessionsBeingConnected.put(p,session);
 								sessions.put(session.getSocketID(), session);
 								logger.fine("Pooling new request.");
-								onSessionAccept(session);
+								// onSessionAccept(session);
 								// sessionHandoff.put(session);
 								logger.fine("Request taken for processing.");
 							}
@@ -252,12 +258,6 @@ public abstract class UDPEndPoint {
 						}
 						else{
 							logger.warning("Unknown session <"+dest+"> requested from <"+peer+"> packet type "+packet.getClass().getName());
-						}
-						
-						if(session.getState() == UDTSession.shutdown) {
-							if(null != session.sessionHandlers)
-								session.sessionHandlers.onSessionEnd(session);
-							sessions.remove(session.getSocketID());
 						}
 					}catch(SocketException ex){
 						logger.log(Level.INFO, "SocketException: "+ex.getMessage());

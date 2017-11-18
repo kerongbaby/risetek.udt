@@ -78,6 +78,7 @@ public class ServerSession extends UDTSession {
 
 		if(packet instanceof KeepAlive) {
 			receiver.resetEXPTimer();
+			receiver.resetEXPCount();
 			active = true;
 			return;
 		}
@@ -109,11 +110,6 @@ public class ServerSession extends UDTSession {
 			}
 			return;
 		}
-	}
-
-	@Override
-	public void connected() {
-		System.out.println("server socket connected");
 	}
 }
 

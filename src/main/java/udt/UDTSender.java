@@ -102,8 +102,6 @@ public class UDTSender {
 
 	private volatile boolean stopped=false;
 
-	private volatile boolean paused=false;
-
 	//used to signal that the sender should start to send
 	private volatile CountDownLatch startLatch=new CountDownLatch(1);
 
@@ -158,7 +156,6 @@ public class UDTSender {
 					while(!stopped){
 						//wait until explicitely (re)started
 						// startLatch.await();
-						paused=false;
 						senderAlgorithm();
 					}
 				}catch(InterruptedException ie){
@@ -262,10 +259,12 @@ public class UDTSender {
 		if (p instanceof Acknowledgement) {
 			Acknowledgement acknowledgement=(Acknowledgement)p;
 			onAcknowledge(acknowledgement);
+			session.getReceiver().resetEXPTimer();
 		}
 		else if (p instanceof NegativeAcknowledgement) {
 			NegativeAcknowledgement nak=(NegativeAcknowledgement)p;
 			onNAKPacketReceived(nak);
+			session.getReceiver().resetEXPTimer();
 		}
 		else if (p instanceof KeepAlive) {
 			session.getReceiver().resetEXPCount();
@@ -324,6 +323,9 @@ public class UDTSender {
 		session.getReceiver().resetEXPTimer();
 		statistics.incNumberOfNAKReceived();
 
+		System.out.println("NAK for "+nak.getDecodedLossInfo().size()+" packets lost, " 
+					+"set send period to "+session.getCongestionControl().getSendInterval());
+		
 		if(logger.isLoggable(Level.FINER)){
 			logger.finer("NAK for "+nak.getDecodedLossInfo().size()+" packets lost, " 
 					+"set send period to "+session.getCongestionControl().getSendInterval());
@@ -352,11 +354,9 @@ public class UDTSender {
 	 */
 	long iterationStart;
 	public void senderAlgorithm()throws InterruptedException, IOException{
-		while(!paused){
-			if(stopped && session.flowWindow.isEmpty()) {
-				System.out.println("end of senderAlgorithm");
+		while(true){
+			if(stopped && session.flowWindow.isEmpty())
 				return;
-			}
 
 			iterationStart=Util.getCurrentTime();
 			//if the sender's loss list is not empty 
@@ -373,8 +373,7 @@ public class UDTSender {
 				if(unAcknowledged<session.getCongestionControl().getCongestionWindowSize()
 						&& unAcknowledged<session.getFlowWindowSize()){
 					//check for application data
-					if(null != session.sessionHandlers)
-						session.sessionHandlers.onDataRequest();
+					session.onDataRequest();
 					DataPacket dp=session.flowWindow.consumeData();
 					if(dp!=null){
 						send(session, dp);
@@ -393,14 +392,16 @@ public class UDTSender {
 			}
 			//wait
 			if(largestSentSequenceNumber % 16 !=0){
-				long snd=(long)session.getCongestionControl().getSendInterval()*100;
+				long snd=(long)session.getCongestionControl().getSendInterval();
 				long passed=(Util.getCurrentTime()-iterationStart);
+/*				
 				if((snd-passed)/1000 > 0) {
 					statistics.incNumberOfCCSlowDownEvents();
 					Thread.sleep((snd-passed)/1000);
-					//System.out.println("delay:" + (snd-passed)/1000);
+					System.out.println("delay:" + (snd-passed)/1000);
 				}
-/*				
+*/
+
 				int x=0;
 				while(snd-passed>0){
 					//can't wait with microsecond precision :(
@@ -410,7 +411,6 @@ public class UDTSender {
 					}
 					passed=(Util.getCurrentTime()-iterationStart);
 				}
-*/
 			}
 		}
 	}

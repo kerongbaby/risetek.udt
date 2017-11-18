@@ -228,7 +228,9 @@ public class UDTReceiver {
 		if(packet.isControlPacket()){
 			ControlPacket cp=(ControlPacket)packet;
 			int cpType=cp.getControlPacketType();
+			// TODO: by wangyuchun: ACK and NAK should not be here?
 			if(cpType==ControlPacketType.ACK.ordinal() || cpType==ControlPacketType.NAK.ordinal()){
+				System.out.println("REST nextEXP 1");
 				nextEXP=Util.getCurrentTime()+expTimerInterval;
 			} else if(cpType == ControlPacketType.ACK2.ordinal()) {
 				Acknowledgment2 ack2=(Acknowledgment2)packet;
@@ -307,6 +309,7 @@ public class UDTReceiver {
 	 * process EXP event (see spec. p 13)
 	 */
 	protected void processEXPEvent()throws IOException{
+		System.out.println("processEXPEvent:" + expCount);
 		UDTSender sender=session.getSender();
 		//put all the unacknowledged packets in the senders loss list
 		sender.putUnacknowledgedPacketsIntoLossList();
@@ -379,6 +382,7 @@ public class UDTReceiver {
 			put all the sequence numbers between (but excluding) these two values
 			into the receiver's loss list and send them to the sender in an NAK packet*/
 		if(SequenceNumber.compare(currentSequenceNumber,largestReceivedSeqNumber+1)>0){
+			System.out.println("NAK for:"+currentSequenceNumber + " to " +largestReceivedSeqNumber);
 			sendNAK(currentSequenceNumber);
 		}
 		else if(SequenceNumber.compare(currentSequenceNumber,largestReceivedSeqNumber)<0){
@@ -521,7 +525,6 @@ public class UDTReceiver {
 
 	protected void resetEXPTimer(){
 		nextEXP=Util.getCurrentTime()+expTimerInterval;
-		expCount=0;
 	}
 
 	protected void resetEXPCount(){

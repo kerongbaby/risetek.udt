@@ -62,17 +62,8 @@ public abstract class UDTClient extends UDPEndPoint {
 		InetAddress address=InetAddress.getByName(host);
 		Destination destination=new Destination(address,port);
 		//create client session...
-		ClientSession clientSession=new ClientSession(this,destination) {
-
-			@Override
-			public void connected() {
-				logger.info("The UDTClient is connected");
-				UDTClientConnected(this);
-			}
-		};
+		ClientSession clientSession=new ClientSession(this,destination);
 		addSession(clientSession.getSocketID(), clientSession);
 		clientSession.connect();
 	}
-
-	public abstract void UDTClientConnected(UDTSession session);
 }
