@@ -256,7 +256,7 @@ public class UDTReceiver {
 	/**
 	 * process ACK event (see spec. p 12)
 	 */
-	protected void processACKEvent(boolean isTriggeredByTimer)throws IOException{
+	private void processACKEvent(boolean isTriggeredByTimer)throws IOException{
 		//(1).Find the sequence number *prior to which* all the packets have been received
 		final long ackNumber;
 		ReceiverLossListEntry entry=receiverLossList.getFirstEntry();

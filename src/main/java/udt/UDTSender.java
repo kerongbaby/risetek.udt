@@ -271,7 +271,7 @@ public class UDTSender {
 		}
 	}
 
-	protected void onAcknowledge(Acknowledgement acknowledgement)throws IOException{
+	private void onAcknowledge(Acknowledgement acknowledgement)throws IOException{
 		ackLock.lock();
 		ackCondition.signal();
 		ackLock.unlock();
@@ -315,12 +315,11 @@ public class UDTSender {
 	 * procedure when a NAK is received (spec. p 14)
 	 * @param nak
 	 */
-	protected void onNAKPacketReceived(NegativeAcknowledgement nak){
+	private void onNAKPacketReceived(NegativeAcknowledgement nak){
 		for(Integer i: nak.getDecodedLossInfo()){
 			senderLossList.insert(Long.valueOf(i));
 		}
 		session.getCongestionControl().onLoss(nak.getDecodedLossInfo());
-		session.getReceiver().resetEXPTimer();
 		statistics.incNumberOfNAKReceived();
 
 		System.out.println("NAK for "+nak.getDecodedLossInfo().size()+" packets lost, " 
@@ -330,7 +329,6 @@ public class UDTSender {
 			logger.finer("NAK for "+nak.getDecodedLossInfo().size()+" packets lost, " 
 					+"set send period to "+session.getCongestionControl().getSendInterval());
 		}
-		return;
 	}
 
 	//send single keep alive packet -> move to socket!
@@ -341,7 +339,7 @@ public class UDTSender {
 		endpoint.doSend(session, keepAlive);
 	}
 
-	protected void sendAck2(long ackSequenceNumber)throws IOException{
+	private void sendAck2(long ackSequenceNumber)throws IOException{
 		Acknowledgment2 ackOfAckPkt = new Acknowledgment2();
 		ackOfAckPkt.setAckSequenceNumber(ackSequenceNumber);
 		ackOfAckPkt.setSession(session);
