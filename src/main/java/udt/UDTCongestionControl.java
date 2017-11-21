@@ -130,6 +130,11 @@ public class UDTCongestionControl implements CongestionControl {
 	public void onACK(long ackSeqno){
 		//increase window during slow start
 		if(slowStartPhase){
+			/*
+			 * 1) If the current status is in the slow start phase, set the
+			 *    congestion window size to the product of packet arrival rate and
+			 *    (RTT + SYN). Slow Start ends. Stop. 
+			 */
 			congestionWindowSize+=ackSeqno-lastAckSeqNumber;
 			lastAckSeqNumber = ackSeqno;
 			//but not beyond a maximum size
@@ -142,10 +147,13 @@ public class UDTCongestionControl implements CongestionControl {
 					packetSendingPeriod=(double)congestionWindowSize/(roundTripTime+Util.getSYNTimeD());
 				}
 			}
-
 		}else{
 			//1.if it is  not in slow start phase,set the congestion window size 
 			//to the product of packet arrival rate and(rtt +SYN)
+			/*
+			 * 2) Set the congestion window size (CWND) to: CWND = A * (RTT + SYN) + 16
+			 */
+			
 			double A=packetArrivalRate/1000000.0*(roundTripTime+Util.getSYNTimeD());
 			congestionWindowSize=(long)A+16;
 			if(logger.isLoggable(Level.FINER)){
@@ -163,12 +171,36 @@ public class UDTCongestionControl implements CongestionControl {
 		}
 
 		//4. compute the increase in sent packets for the next SYN period
-		double numOfIncreasingPacket=computeNumOfIncreasingPacket();
+		/*
+		 * 3) The number of sent packets to be increased in the next SYN period
+		 *    (inc) is calculated as:
+		 *    if (B <= C)
+		 *       inc = 1/PS;
+		 *    else
+		 *       inc = max(10^(ceil(log10((B-C)*PS*8))) * Beta/PS, 1/PS);
+		 *   where B is the estimated link capacity and C is the current
+		 *   sending speed. All are counted as packets per second. PS is the
+		 *   fixed size of UDT packet counted in bytes. Beta is a constant
+		 *   value of 0.0000015.
+		 */
+		double remaining=estimatedLinkCapacity-1000000.0/packetSendingPeriod;
+		double numOfIncreasingPacket;
+		if(remaining<=0){
+			numOfIncreasingPacket = 1.0/UDPEndPoint.DATAGRAM_SIZE;
+		}
+		else{
+			double exp=Math.ceil(Math.log10(remaining*PS*8));
+			double power10 = Math.pow( 10.0, exp)* BetaDivPS;
+			numOfIncreasingPacket = Math.max(power10, 1/PS);
+		}
 
 		//5. update the send period
+		/*
+		 * 4) The SND period is updated as:
+		 *    SND = (SND * SYN) / (SND * inc + SYN).
+		 */
 		double factor=Util.getSYNTimeD()/(packetSendingPeriod*numOfIncreasingPacket+Util.getSYNTimeD());
 		packetSendingPeriod=factor*packetSendingPeriod;
-		//packetSendingPeriod=0.995*packetSendingPeriod;
 
 		statistics.setSendPeriod(packetSendingPeriod);
 	}
@@ -176,41 +208,26 @@ public class UDTCongestionControl implements CongestionControl {
 	private final long PS=UDPEndPoint.DATAGRAM_SIZE;
 	private final double BetaDivPS=0.0000015/PS;
 
-	//see spec page 16
-	private double computeNumOfIncreasingPacket (){
-		//difference between link capacity and sending speed, in packets per second 
-		double remaining=estimatedLinkCapacity-1000000.0/packetSendingPeriod;
-
-		if(remaining<=0){
-			return 1.0/UDPEndPoint.DATAGRAM_SIZE;
-		}
-		else{
-			double exp=Math.ceil(Math.log10(remaining*PS*8));
-			double power10 = Math.pow( 10.0, exp)* BetaDivPS;
-			return Math.max(power10, 1/PS);
-		}
-	}
-
 	/* (non-Javadoc)
 	 * @see udt.CongestionControl#onNAK(java.util.List)
 	 */
 	public void onLoss(List<Integer>lossInfo){
-		loss=true;
 		long firstBiggestlossSeqNo=lossInfo.get(0);
 		nACKCount++;
 		/*1) If it is in slow start phase, set inter-packet interval to 
       	   1/recvrate. Slow start ends. Stop. */
 		if(slowStartPhase){
+			slowStartPhase = false;
 			if(packetArrivalRate>0){
-				packetSendingPeriod = 100000.0/packetArrivalRate;
+				packetSendingPeriod = 1000000.0/packetArrivalRate;
+				return;
 			}
 			else{
 				packetSendingPeriod=congestionWindowSize/(roundTripTime+Util.getSYNTime());
 			}
-			slowStartPhase = false;
-			return;
 		}
 
+		loss=true;
 		long currentMaxSequenceNumber=session.getSender().getCurrentSequenceNumber();
 		// 2)If this NAK starts a new congestion epoch
 		if(firstBiggestlossSeqNo>lastDecreaseSeqNo){
@@ -238,7 +255,6 @@ public class UDTCongestionControl implements CongestionControl {
 		}
 		
 		statistics.setSendPeriod(packetSendingPeriod);
-		return;
 	}
 
 	/* (non-Javadoc)

@@ -411,7 +411,7 @@ public class UDTReceiver {
 	 * @param currentSequenceNumber - the currently received sequence number
 	 * @throws IOException
 	 */
-	protected void sendNAK(long currentSequenceNumber)throws IOException{
+	private void sendNAK(long currentSequenceNumber)throws IOException{
 		NegativeAcknowledgement nAckPacket= new NegativeAcknowledgement();
 		nAckPacket.addLossInfo(largestReceivedSeqNumber+1, currentSequenceNumber);
 		nAckPacket.setSession(session);
@@ -427,7 +427,7 @@ public class UDTReceiver {
 		statistics.incNumberOfNAKSent();
 	}
 
-	protected void sendNAK(List<Long>sequenceNumbers)throws IOException{
+	private void sendNAK(List<Long>sequenceNumbers)throws IOException{
 		if(sequenceNumbers.size()==0)return;
 		NegativeAcknowledgement nAckPacket= new NegativeAcknowledgement();
 		nAckPacket.addLossInfo(sequenceNumbers);
