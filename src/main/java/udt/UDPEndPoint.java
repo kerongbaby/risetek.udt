@@ -83,6 +83,7 @@ public abstract class UDPEndPoint {
 	public static final int DATAGRAM_SIZE=1400;
 
 	public abstract void onSessionReady(UDTSession session);
+	public abstract void onSessionPrepare(UDTSession session);
 	/**
 	 * bind to any local port on the given host address
 	 * @param localAddress
@@ -244,10 +245,7 @@ public abstract class UDPEndPoint {
 								session=new ServerSession(peer,this);
 								sessionsBeingConnected.put(p,session);
 								sessions.put(session.getSocketID(), session);
-								logger.fine("Pooling new request.");
-								// onSessionAccept(session);
-								// sessionHandoff.put(session);
-								logger.fine("Request taken for processing.");
+								onSessionPrepare(session);
 							}
 							else {
 								throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);

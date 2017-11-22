@@ -14,7 +14,7 @@ import udt.packets.DataPacket;
  */
 public class DServer {
 
-	private final static int numberPackets = 1024;
+	private final static int numberPackets = 1024*2;
 
 	public static void main(String[] fullArgs) throws Exception{
 		System.out.println("listing on 18008");
@@ -27,6 +27,11 @@ public class DServer {
 					System.out.println("new session accept!!!!!");
 					RequestRunner runner = new RequestRunner(session);
 					session.registeSessionHandlers(runner);
+				}
+
+				@Override
+				public void onSessionPrepare(UDTSession session) {
+					session.setTransferSize(512 * numberPackets);
 				}
 				
 			};
@@ -44,7 +49,7 @@ public class DServer {
 
 		private final NumberFormat format=NumberFormat.getNumberInstance();
 
-		byte[]buf=new byte[1024];
+		byte[]buf=new byte[512];
 
 		long period = System.currentTimeMillis();
 		
@@ -63,7 +68,7 @@ public class DServer {
 	
 				// System.out.println("request to send:" + sendCounter);
 				try {
-					if(session.write(buf, 1024) < 1024) {
+					if(session.write(buf, 512) < 512) {
 						System.out.println("short send at: " + sendCounter);
 						break;
 					} else

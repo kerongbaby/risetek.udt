@@ -49,6 +49,7 @@ public class ConnectionHandshake extends ControlPacket {
 	
 	private long initialSeqNo = 0;
 	private long packetSize;
+	private long transferSize = 0;
 	private long maxFlowWndSize;
 	
 	public static final long CONNECTION_TYPE_REGULAR=1L;
@@ -94,6 +95,7 @@ public class ConnectionHandshake extends ControlPacket {
 		cookie=PacketUtil.decode(data, 28);
 		//TODO ipv6 check
 		address=PacketUtil.decodeInetAddress(data, 32, false);
+		transferSize = PacketUtil.decode(data, 48);
 	}
 
 	public long getUdtVersion() {
@@ -172,6 +174,7 @@ public class ConnectionHandshake extends ControlPacket {
 			bos.write(PacketUtil.encode(socketID));
 			bos.write(PacketUtil.encode(cookie));
 			bos.write(PacketUtil.encode(address));
+			bos.write(PacketUtil.encode(transferSize));
 			return bos.toByteArray();
 		} catch (Exception e) {
 			// can't happen
@@ -231,6 +234,14 @@ public class ConnectionHandshake extends ControlPacket {
 		sb.append(", address=").append(address);
 		sb.append("]");
 		return sb.toString();
+	}
+
+	public long getTransferSize() {
+		return transferSize;
+	}
+
+	public void setTransferSize(long transferSize) {
+		this.transferSize = transferSize;
 	}
 	
 	

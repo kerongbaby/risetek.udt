@@ -41,6 +41,12 @@ public class DClient extends Application implements SessionHandlers {
 				dclient.time_passed = System.currentTimeMillis();
 				session.registeSessionHandlers(dclient);
 			}
+
+			@Override
+			public void onSessionPrepare(UDTSession session) {
+
+				System.out.println("should do nothing");
+			}
 		};
 		
 		client.connect(serverHost, serverPort);
@@ -60,6 +66,7 @@ public class DClient extends Application implements SessionHandlers {
 		// do nothing
 	}
 
+	private long tansferSize = 0;
 	@Override
 	public boolean onDataReceive(UDTSession session, DataPacket packet) {
 		for(;;) {
@@ -67,7 +74,10 @@ public class DClient extends Application implements SessionHandlers {
 			if((data = session.receiveBuffer.poll()) == null)
 				break;
 			
-			if(1023 == data.getSequenceNumber()) {
+			tansferSize += data.data.length;
+			
+			if(tansferSize >= session.getTransferSize())
+			{
 				try {
 					session.shutdown();
 				} catch (IOException e) {

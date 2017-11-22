@@ -2,7 +2,7 @@ package udt;
 
 public class AppData implements Comparable<AppData>{
 	final long sequenceNumber;
-	final byte[] data;
+	public final byte[] data;
 	public AppData(long sequenceNumber, byte[]data){
 		this.sequenceNumber=sequenceNumber;
 		this.data=data;

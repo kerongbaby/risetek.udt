@@ -78,7 +78,7 @@ public abstract class UDTSession {
 	protected final CongestionControl cc;
 	
 	private InetSocketAddress targetAddress;
-	
+	private long transferSize = 0;
 	
 	//session cookie created during handshake
 	protected long sessionCookie=0;
@@ -360,6 +360,8 @@ public abstract class UDTSession {
 			finalConnectionHandshake.setSession(this);
 			finalConnectionHandshake.setCookie(sessionCookie);
 			finalConnectionHandshake.setAddress(endPoint.getLocalAddress());
+			finalConnectionHandshake.setTransferSize(transferSize);
+			System.out.println("sendFinalHandShake ::::::" + transferSize);
 		}
 		logger.info("Sending final handshake ack "+finalConnectionHandshake);
 		endPoint.doSend(this, finalConnectionHandshake);
@@ -391,10 +393,10 @@ public abstract class UDTSession {
 			try{
 				// logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
 				//TODO validate parameters sent by peer
+				transferSize = hs.getTransferSize();
 				setState(ready);
 				cc.init();
 				// This is for ClientSession
-//				connected();
 				endPoint.onSessionReady(this);
 			}catch(Exception ex){
 				logger.log(Level.WARNING,"Error creating socket",ex);
@@ -511,5 +513,15 @@ public abstract class UDTSession {
 			return;
 		if(flowWindow.isLow())
 			sessionHandlers.onDataRequest();
+	}
+
+
+	public long getTransferSize() {
+		return transferSize;
+	}
+
+
+	public void setTransferSize(long transferSize) {
+		this.transferSize = transferSize;
 	}
 }
