@@ -286,7 +286,10 @@ public abstract class UDPEndPoint {
 	protected int doSend(UDTSession session, UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
 		ByteBuffer bb = ByteBuffer.wrap(data);
-		return dgChannel.send(bb, session.getTargetAddress());
+		int send = dgChannel.send(bb, session.getTargetAddress());
+		if(send <= 0)
+			System.out.println("doSend failed:" + send);
+		return send;
 	}
 
 	public String toString(){

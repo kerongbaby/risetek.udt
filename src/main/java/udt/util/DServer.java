@@ -10,11 +10,12 @@ import udt.packets.DataPacket;
 
 
 /**
- * 一个随机发送1M字节的服务端程序，用于调试和测量目的
+ * 一个随机发送（numberPackets * packetSize）字节的服务端程序，用于调试和测量目的
  */
 public class DServer {
 
-	private final static int numberPackets = 1024*2;
+	private final static int packetSize = 1024;
+	private final static int numberPackets = (4*1024*1024)/packetSize;
 
 	public static void main(String[] fullArgs) throws Exception{
 		System.out.println("listing on 18008");
@@ -24,14 +25,13 @@ public class DServer {
 
 				@Override
 				public void onSessionReady(UDTSession session) {
-					System.out.println("new session accept!!!!!");
 					RequestRunner runner = new RequestRunner(session);
 					session.registeSessionHandlers(runner);
 				}
 
 				@Override
 				public void onSessionPrepare(UDTSession session) {
-					session.setTransferSize(512 * numberPackets);
+					session.setTransferSize(packetSize * numberPackets);
 				}
 				
 			};
@@ -49,7 +49,7 @@ public class DServer {
 
 		private final NumberFormat format=NumberFormat.getNumberInstance();
 
-		byte[]buf=new byte[512];
+		byte[]buf=new byte[packetSize];
 
 		long period = System.currentTimeMillis();
 		
@@ -68,7 +68,7 @@ public class DServer {
 	
 				// System.out.println("request to send:" + sendCounter);
 				try {
-					if(session.write(buf, 512) < 512) {
+					if(session.write(buf, packetSize) == 0) {
 						System.out.println("short send at: " + sendCounter);
 						break;
 					} else
@@ -97,7 +97,7 @@ public class DServer {
 			NumberFormat format = NumberFormat.getNumberInstance();
 			format.setMaximumFractionDigits(3);
 			period = System.currentTimeMillis() - period;
-			double rate=1000.0 / period;
+			double rate= numberPackets * packetSize / 1000.0 / period;
 			System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 		}
 	}

@@ -125,7 +125,7 @@ public class UDTReceiver {
 	//instant when the session was created (for expiry checking)
 	private final long sessionUpSince;
 	//milliseconds to timeout a new session that stays idle
-	private final long IDLE_TIMEOUT = 3*60*1000;
+	private final long IDLE_TIMEOUT = 2*60*1000;
 
 	//buffer size for storing data
 	private final long bufferSize;
@@ -309,7 +309,6 @@ public class UDTReceiver {
 	 * process EXP event (see spec. p 13)
 	 */
 	protected void processEXPEvent()throws IOException{
-		System.out.println("processEXPEvent:" + expCount);
 		UDTSender sender=session.getSender();
 		//put all the unacknowledged packets in the senders loss list
 		sender.putUnacknowledgedPacketsIntoLossList();
@@ -318,6 +317,7 @@ public class UDTReceiver {
 				sendShutdown();
 				stop();
 				logger.info("Session "+session+" expired.");
+				session.setState(UDTSession.shutdown);
 				return;
 			}
 		}
@@ -334,11 +334,7 @@ public class UDTReceiver {
 	private int n=0;
 	
 	protected void onDataPacketReceived(DataPacket dp)throws IOException{
-		if(!session.onDataPacketReceived(dp)) {
-			//need to drop packet...
-			System.out.println("drop packet");
-			return;
-		}
+		session.onDataPacketReceived(dp);
 
 		long currentSequenceNumber = dp.getPacketSequenceNumber();
 		
@@ -494,8 +490,6 @@ public class UDTReceiver {
 		if(entry!=null){
 			long ackNumber=entry.getAckNumber();
 			largestAcknowledgedAckNumber=Math.max(ackNumber, largestAcknowledgedAckNumber);
-			
-			System.out.println("largestAcknowledgedAckNumber:" + largestAcknowledgedAckNumber);
 			
 			long rtt=entry.getAge();
 			if(roundTripTime>0)roundTripTime = (roundTripTime*7 + rtt)/8;

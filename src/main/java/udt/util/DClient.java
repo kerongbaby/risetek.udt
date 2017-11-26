@@ -88,7 +88,7 @@ public class DClient extends Application implements SessionHandlers {
 				NumberFormat format = NumberFormat.getNumberInstance();
 				format.setMaximumFractionDigits(3);
 				time_passed = System.currentTimeMillis() - time_passed;
-				double rate=1000.0 / time_passed;
+				double rate= session.getTransferSize() / 1000.0 / time_passed;
 				System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 
 				synchronized(this) {
