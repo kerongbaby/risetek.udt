@@ -119,16 +119,26 @@ public class UDTSender {
 	private class SenderTask extends TimerTask {
 		@Override
 		public void run() {
-			long snd = (long) session.getCongestionControl().getSendInterval();
-			if (snd == 0)
-				snd = 1000;
-			long numPackets = 1000000 / 1000 / snd;
-			// System.out.println("nums:" + numPackets + " snd:" + snd);
+			long interval = (long) session.getCongestionControl().getSendInterval();
+			if (interval <= 50)
+				interval = 500;
+
+			timer_period = interval / 1000;
+			if(timer_period <= 0)
+				timer_period = 1;
+			
+			long numPackets = timer_period * 1000 / interval;
+			if(numPackets <= 0)
+				numPackets = 1;
+			
+			System.out.println("timer:" + timer_period + " packets:" + numPackets + " interval:" + interval);
+			
+			/*
 			if (numPackets > 4)
 				numPackets = 4;
 			else if (numPackets == 0)
 				numPackets = 1;
-
+			 */
 			try {
 				for (int loop = 0; loop < numPackets; loop++) {
 					// if the sender's loss list is not empty
@@ -168,13 +178,11 @@ public class UDTSender {
 				e.printStackTrace();
 			}
 
-			timer_period = (long) session.getCongestionControl().getSendInterval() / 100;
 			if (timer_period <= 0) {
 				timer_period = 1;
 			} else if (timer_period > 30) {
 				timer_period = 30;
 			}
-			// System.out.println("timer_period:" + timer_period);
 			timer.schedule(new SenderTask(), timer_period);
 		}
 	}
