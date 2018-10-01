@@ -334,8 +334,6 @@ public class UDTReceiver {
 	private int n=0;
 	
 	protected void onDataPacketReceived(DataPacket dp)throws IOException{
-		session.onDataPacketReceived(dp);
-
 		long currentSequenceNumber = dp.getPacketSequenceNumber();
 		
 		//for TESTING : check whether to drop this packet
@@ -399,6 +397,8 @@ public class UDTReceiver {
 		if(ackInterval>0){
 			if(n % ackInterval == 0)processACKEvent(false);
 		}
+
+		session.onDataPacketReceived(dp);
 	}
 
 	/**
@@ -530,9 +530,9 @@ public class UDTReceiver {
 	}
 	
 	protected void onShutdown()throws IOException{
-		stop();
 		if(null != session.sessionHandlers)
 			session.sessionHandlers.onShutdown();
+		stop();
 	}
 
 	public void stop()throws IOException{
