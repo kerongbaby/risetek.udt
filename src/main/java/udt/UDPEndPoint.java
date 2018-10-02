@@ -82,8 +82,8 @@ public abstract class UDPEndPoint {
 
 	public static final int DATAGRAM_SIZE=1400;
 
-	public abstract void onSessionReady(UDTSession session);
-	public abstract void onSessionPrepare(UDTSession session);
+	public abstract ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException,UnknownHostException;
+
 	/**
 	 * bind to any local port on the given host address
 	 * @param localAddress
@@ -114,7 +114,6 @@ public abstract class UDPEndPoint {
 		dgChannel.socket().setReuseAddress(true);
 		
 		dgChannel.configureBlocking(false);
-		dgChannel.register(selector, SelectionKey.OP_READ);
 	}
 
 	/**
@@ -146,7 +145,7 @@ public abstract class UDPEndPoint {
 		};
 		Thread t=UDTThreadFactory.get().newThread(receive);
 		t.setName("UDPEndpoint-"+t.getName());
-		t.setDaemon(true);
+		// t.setDaemon(true);
 		t.start();
 		logger.info("UDTEndpoint started.");
 	}
@@ -187,6 +186,9 @@ public abstract class UDPEndPoint {
 
 	private final ByteBuffer dpbuffer = ByteBuffer.allocate(DATAGRAM_SIZE);
 
+	public void needtoSend() throws IOException {
+		// dgChannel.register(selector, SelectionKey.OP_WRITE);
+	}
 	/**
 	 * single receive, run in the receiverThread, see {@link #start()}
 	 * <ul>
@@ -197,6 +199,8 @@ public abstract class UDPEndPoint {
 	 * @throws IOException
 	 */
 	protected void doReceive()throws IOException{
+		dgChannel.register(selector, SelectionKey.OP_READ);
+
 		while(!stopped){
 			if(0 == selector.select(Util.getSYNTime()/100) ) {
 				for(UDTSession session:sessions.values())
@@ -227,8 +231,11 @@ public abstract class UDPEndPoint {
 							session.received(packet,peer);
 
 							if(session.getState() == UDTSession.shutdown) {
+								/*
 								if(null != session.sessionHandlers)
 									session.sessionHandlers.onSessionEnd(session);
+								*/
+								session.onSessionEnd();
 								sessions.remove(session.getSocketID());
 							}
 						}
@@ -242,10 +249,11 @@ public abstract class UDPEndPoint {
 								addSession(destID, session);
 							}
 							else if(session==null){
-								session=new ServerSession(peer,this);
+								// session=new ServerSession(peer,this);
+								session=onSessionCreate(peer,this);
 								sessionsBeingConnected.put(p,session);
 								sessions.put(session.getSocketID(), session);
-								onSessionPrepare(session);
+								session.onSessionPrepare();
 							}
 							else {
 								throw new IOException("dest ID sent by client does not match: " + session.getSocketID() + " : " + destID);
@@ -267,6 +275,15 @@ public abstract class UDPEndPoint {
 					// Register write with the selector
 					if(!stopped)
 						key.interestOps(SelectionKey.OP_READ);
+				} else if(key.isWritable()) {
+					int sented = 0;
+					for(UDTSession session:sessions.values()) {
+						sented += session.sender.sendData();
+					}
+					/*
+					if(!stopped && sented > 0)
+						key.interestOps(SelectionKey.OP_WRITE);
+						*/
 				}
 
 			}

@@ -66,7 +66,7 @@ public class UDTSender {
 
 	private final UDPEndPoint endpoint;
 
-	private final UDTSession session;
+	private final UDTSession _session;
 
 	private final UDTStatistics statistics;
 
@@ -97,14 +97,14 @@ public class UDTSender {
 	private final Condition ackCondition = ackLock.newCondition();
 
 	private final boolean storeStatistics;
-	private final Timer timer = new Timer(false);
+	private Timer timer = new Timer(false);
 	private long timer_period = 0;
 
 	public UDTSender(UDTSession session) {
 		// if(!session.isReady())throw new IllegalStateException("UDTSession is
 		// not ready.");
-		this.session = session;
-		this.endpoint = session.getEndPoint();
+		_session = session;
+		endpoint = session.getEndPoint();
 		statistics = session.getStatistics();
 		senderLossList = new SenderLossList();
 		sendBuffer = new ConcurrentHashMap<Long, byte[]>(session.getFlowWindowSize(), 0.75f, 2);
@@ -113,77 +113,83 @@ public class UDTSender {
 		storeStatistics = Boolean.getBoolean("udt.sender.storeStatistics");
 		initMetrics();
 
-		timer.schedule(new SenderTask(), timer_period);
 	}
 
+	public void start() {
+		timer.schedule(new SenderTask(), 0);
+	}
+	
+	public int sendData() {
+		System.out.println("simulater send");
+		return 0;
+	}
+	
+	public void sendTask() {
+
+		long interval = (long) _session.getCongestionControl().getSendInterval();
+		long cap = _session.getCongestionControl().getEstimatedLinkCapacity();
+		System.out.format("interval %d cap: %d\r\n", interval, cap);
+		timer_period = interval;
+		int totalSend = 0;
+		try {
+//			for (int loop = 0; loop < numPackets; loop++) 
+			for (; totalSend < 100*1024;) 
+			{
+				// if the sender's loss list is not empty
+				Long entry = senderLossList.getFirstEntry();
+				if (entry != null) {
+					handleRetransmit(entry);
+					continue;
+				}
+
+				// if the number of unacknowledged data packets does not
+				// exceed the congestion
+				// and the flow window sizes, pack a new packet
+				int unAcknowledged = unacknowledged.get();
+
+				if (unAcknowledged >= _session.getCongestionControl().getCongestionWindowSize()) {
+					statistics.incNumberOfCCWindowExceededEvents();
+					// waitForAck();
+					// System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
+					timer_period = 200;
+					timer.schedule(new SenderTask(), timer_period);
+					return;
+				} else if (unAcknowledged < _session.getFlowWindowSize()) {
+					// check for application data
+					boolean havemore = _session.onDataRequest();
+					DataPacket dp = _session.flowWindow.consumeData();
+					if (dp != null) {
+						int send;
+						if((send = send(_session, dp)) <= 0)
+							break;
+						totalSend += send;
+						largestSentSequenceNumber = dp.getPacketSequenceNumber();
+					} else {
+						statistics.incNumberOfMissingDataEvents();
+						if(!havemore) {
+							System.out.println("no datas to send, stop sender");
+							return;
+						}
+						break;
+					}
+				} else
+					break;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println("totalSend: " + totalSend);
+		if(!_session.isShutdown() && null != timer) {
+			// System.out.println("timer:" + timer_period);
+			timer.schedule(new SenderTask(), timer_period);
+		}
+	}
+	
 	private class SenderTask extends TimerTask {
 		@Override
 		public void run() {
-			long interval = (long) session.getCongestionControl().getSendInterval();
-			if (interval <= 50)
-				interval = 500;
-
-			timer_period = interval / 1000;
-			if(timer_period <= 0)
-				timer_period = 1;
-			
-			long numPackets = timer_period * 1000 / interval;
-			if(numPackets <= 0)
-				numPackets = 1;
-			
-			System.out.println("timer:" + timer_period + " packets:" + numPackets + " interval:" + interval);
-			
-			/*
-			if (numPackets > 4)
-				numPackets = 4;
-			else if (numPackets == 0)
-				numPackets = 1;
-			 */
-			try {
-				for (int loop = 0; loop < numPackets; loop++) {
-					// if the sender's loss list is not empty
-					Long entry = senderLossList.getFirstEntry();
-					if (entry != null) {
-						handleRetransmit(entry);
-						continue;
-					}
-
-					// if the number of unacknowledged data packets does not
-					// exceed the congestion
-					// and the flow window sizes, pack a new packet
-					int unAcknowledged = unacknowledged.get();
-
-					if (unAcknowledged >= session.getCongestionControl().getCongestionWindowSize()) {
-						statistics.incNumberOfCCWindowExceededEvents();
-						// waitForAck();
-						// System.out.println("hold:" + unAcknowledged + " / " +
-						// session.getCongestionControl().getCongestionWindowSize());
-						timer_period = 200;
-						timer.schedule(new SenderTask(), timer_period);
-						return;
-					} else if (unAcknowledged < session.getFlowWindowSize()) {
-						// check for application data
-						session.onDataRequest();
-						DataPacket dp = session.flowWindow.consumeData();
-						if (dp != null) {
-							send(session, dp);
-							largestSentSequenceNumber = dp.getPacketSequenceNumber();
-						} else {
-							statistics.incNumberOfMissingDataEvents();
-						}
-					}
-				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			if (timer_period <= 0) {
-				timer_period = 1;
-			} else if (timer_period > 30) {
-				timer_period = 30;
-			}
-			timer.schedule(new SenderTask(), timer_period);
+			sendTask();
 		}
 	}
 
@@ -198,35 +204,39 @@ public class UDTSender {
 		statistics.addMetric(dgSendTime);
 		dgSendInterval = new MeanValue("SENDER: Datagram send interval");
 		statistics.addMetric(dgSendInterval);
-		throughput = new MeanThroughput("SENDER: Throughput", session.getDatagramSize());
+		throughput = new MeanThroughput("SENDER: Throughput", _session.getDatagramSize());
 		statistics.addMetric(throughput);
 	}
 
 	/**
 	 * sends the given data packet, storing the relevant information
 	 */
-	private void send(UDTSession session, DataPacket p) throws IOException {
+	private int send(UDTSession session, DataPacket p) throws IOException {
+		int val = 0;
 		synchronized (sendLock) {
 			if (storeStatistics) {
 				dgSendInterval.end();
 				dgSendTime.begin();
 			}
-			if (endpoint.doSend(session, p) <= 0)
+			if ((val = endpoint.doSend(session, p)) <= 0)
 				System.out.println("send datapacket failed");
-			if (storeStatistics) {
-				dgSendTime.end();
-				dgSendInterval.begin();
-				throughput.end();
-				throughput.begin();
+			else {
+				if (storeStatistics) {
+					dgSendTime.end();
+					dgSendInterval.begin();
+					throughput.end();
+					throughput.begin();
+				}
+				// store data for potential retransmit
+				int l = p.getLength();
+				byte[] data = new byte[l];
+				System.arraycopy(p.getData(), 0, data, 0, l);
+				sendBuffer.put(p.getPacketSequenceNumber(), data);
+				unacknowledged.incrementAndGet();
+				statistics.incNumberOfSentDataPackets();
 			}
-			// store data for potential retransmit
-			int l = p.getLength();
-			byte[] data = new byte[l];
-			System.arraycopy(p.getData(), 0, data, 0, l);
-			sendBuffer.put(p.getPacketSequenceNumber(), data);
-			unacknowledged.incrementAndGet();
 		}
-		statistics.incNumberOfSentDataPackets();
+		return val;
 	}
 
 	// receive a packet from server from the peer
@@ -234,13 +244,13 @@ public class UDTSender {
 		if (p instanceof Acknowledgement) {
 			Acknowledgement acknowledgement = (Acknowledgement) p;
 			onAcknowledge(acknowledgement);
-			session.getReceiver().resetEXPTimer();
+			_session.getReceiver().resetEXPTimer();
 		} else if (p instanceof NegativeAcknowledgement) {
 			NegativeAcknowledgement nak = (NegativeAcknowledgement) p;
 			onNAKPacketReceived(nak);
-			session.getReceiver().resetEXPTimer();
+			_session.getReceiver().resetEXPTimer();
 		} else if (p instanceof KeepAlive) {
-			session.getReceiver().resetEXPCount();
+			_session.getReceiver().resetEXPCount();
 		}
 	}
 
@@ -249,7 +259,7 @@ public class UDTSender {
 		ackCondition.signal();
 		ackLock.unlock();
 
-		CongestionControl cc = session.getCongestionControl();
+		CongestionControl cc = _session.getCongestionControl();
 		long rtt = acknowledgement.getRoundTripTime();
 		if (rtt > 0) {
 			long rttVar = acknowledgement.getRoundTripTimeVar();
@@ -295,15 +305,15 @@ public class UDTSender {
 		for (Integer i : nak.getDecodedLossInfo()) {
 			senderLossList.insert(Long.valueOf(i));
 		}
-		session.getCongestionControl().onLoss(nak.getDecodedLossInfo());
+		_session.getCongestionControl().onLoss(nak.getDecodedLossInfo());
 		statistics.incNumberOfNAKReceived();
 
 		System.out.println("NAK for " + nak.getDecodedLossInfo().size() + " packets lost, " + "set send period to "
-				+ session.getCongestionControl().getSendInterval());
+				+ _session.getCongestionControl().getSendInterval());
 
 		if (logger.isLoggable(Level.FINER)) {
 			logger.finer("NAK for " + nak.getDecodedLossInfo().size() + " packets lost, " + "set send period to "
-					+ session.getCongestionControl().getSendInterval());
+					+ _session.getCongestionControl().getSendInterval());
 		}
 	}
 
@@ -311,50 +321,16 @@ public class UDTSender {
 	protected void sendKeepAlive() throws Exception {
 		KeepAlive keepAlive = new KeepAlive();
 		// TODO
-		keepAlive.setSession(session);
-		endpoint.doSend(session, keepAlive);
+		keepAlive.setSession(_session);
+		endpoint.doSend(_session, keepAlive);
 	}
 
 	private void sendAck2(long ackSequenceNumber) throws IOException {
 		Acknowledgment2 ackOfAckPkt = new Acknowledgment2();
 		ackOfAckPkt.setAckSequenceNumber(ackSequenceNumber);
-		ackOfAckPkt.setSession(session);
-		ackOfAckPkt.setDestinationID(session.getDestination().getSocketID());
-		endpoint.doSend(session, ackOfAckPkt);
-	}
-
-	/**
-	 * sender algorithm
-	 */
-	// long iterationStart;
-	public void senderAlgorithm() throws InterruptedException, IOException {
-		// iterationStart=Util.getCurrentTime();
-		// if the sender's loss list is not empty
-		{
-			// if the number of unacknowledged data packets does not exceed the
-			// congestion
-			// and the flow window sizes, pack a new packet
-			int unAcknowledged = unacknowledged.get();
-
-			if (unAcknowledged < session.getCongestionControl().getCongestionWindowSize()
-					&& unAcknowledged < session.getFlowWindowSize()) {
-				// check for application data
-				session.onDataRequest();
-				DataPacket dp = session.flowWindow.consumeData();
-				if (dp != null) {
-					send(session, dp);
-					largestSentSequenceNumber = dp.getPacketSequenceNumber();
-				} else {
-					statistics.incNumberOfMissingDataEvents();
-				}
-			} else {
-				// congestion window full, wait for an ack
-				if (unAcknowledged >= session.getCongestionControl().getCongestionWindowSize()) {
-					statistics.incNumberOfCCWindowExceededEvents();
-				}
-				waitForAck();
-			}
-		}
+		ackOfAckPkt.setSession(_session);
+		ackOfAckPkt.setDestinationID(_session.getDestination().getSocketID());
+		endpoint.doSend(_session, ackOfAckPkt);
 	}
 
 	private final DataPacket retransmit = new DataPacket();
@@ -370,10 +346,10 @@ public class UDTSender {
 			byte[] data = sendBuffer.get(seqNumber);
 			if (data != null) {
 				retransmit.setPacketSequenceNumber(seqNumber);
-				retransmit.setSession(session);
-				retransmit.setDestinationID(session.getDestination().getSocketID());
+				retransmit.setSession(_session);
+				retransmit.setDestinationID(_session.getDestination().getSocketID());
 				retransmit.setData(data);
-				endpoint.doSend(session, retransmit);
+				endpoint.doSend(_session, retransmit);
 				statistics.incNumberOfRetransmittedDataPackets();
 			}
 		} catch (Exception e) {
@@ -437,7 +413,7 @@ public class UDTSender {
 	 * @throws InterruptedException
 	 */
 	public void waitForAck(long sequenceNumber) throws InterruptedException {
-		while (!session.isShutdown() && !haveAcknowledgementFor(sequenceNumber)) {
+		while (!_session.isShutdown() && !haveAcknowledgementFor(sequenceNumber)) {
 			ackLock.lock();
 			try {
 				ackCondition.await(100, TimeUnit.MICROSECONDS);
@@ -448,7 +424,7 @@ public class UDTSender {
 	}
 
 	public void waitForAck(long sequenceNumber, int timeout) throws InterruptedException {
-		while (!session.isShutdown() && !haveAcknowledgementFor(sequenceNumber)) {
+		while (!_session.isShutdown() && !haveAcknowledgementFor(sequenceNumber)) {
 			ackLock.lock();
 			try {
 				ackCondition.await(timeout, TimeUnit.MILLISECONDS);
@@ -474,5 +450,6 @@ public class UDTSender {
 
 	public void stop() {
 		timer.cancel();
+		timer = null;
 	}
 }

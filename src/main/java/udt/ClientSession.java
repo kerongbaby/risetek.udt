@@ -47,7 +47,7 @@ import udt.packets.Shutdown;
  * Client side of a client-server UDT connection. 
  * Once established, the session provides a valid.
  */
-public class ClientSession extends UDTSession {
+public abstract class ClientSession extends UDTSession {
 
 	private static final Logger logger=Logger.getLogger(ClientSession.class.getName());
 
@@ -103,6 +103,44 @@ public class ClientSession extends UDTSession {
 			}}, 0, 100);
 	}
 
+	// Client side handler
+	protected void handleConnectionHandshake(ConnectionHandshake hs, Destination peer){
+		if (getState()==handshaking) {
+			//logger.info("Received initial handshake response from "+peer+"\n"+hs);
+			if(hs.getConnectionType()==ConnectionHandshake.CONNECTION_SERVER_ACK){
+				try{
+					//TODO validate parameters sent by peer
+					long peerSocketID=hs.getSocketID();
+					sessionCookie=hs.getCookie();
+					destination.setSocketID(peerSocketID);
+					setState(handshaking+1);
+				}catch(Exception ex){
+					logger.log(Level.WARNING,"Error creating socket",ex);
+					setState(invalid);
+				}
+				return;
+			}
+			else{
+				logger.info("Unexpected type of handshake packet received");
+				setState(invalid);
+			}
+		}
+		else if(getState()==handshaking+1){
+			try{
+				// logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
+				//TODO validate parameters sent by peer
+				transferSize = hs.getTransferSize();
+				setState(ready);
+				cc.init();
+				// This is for ClientSession
+				onSessionReady();
+			}catch(Exception ex){
+				logger.log(Level.WARNING,"Error creating socket",ex);
+				setState(invalid);
+			}
+		}
+	}
+	
 	@Override
 	public void received(UDTPacket packet, Destination peer) {
 		if(null == packet) {

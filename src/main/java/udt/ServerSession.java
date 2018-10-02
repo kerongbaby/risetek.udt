@@ -46,7 +46,7 @@ import udt.packets.Shutdown;
 /**
  * server side session in client-server mode
  */
-public class ServerSession extends UDTSession {
+public abstract class ServerSession extends UDTSession {
 
 	private static final Logger logger=Logger.getLogger(ServerSession.class.getName());
 
@@ -58,6 +58,46 @@ public class ServerSession extends UDTSession {
 	public void setState(int state) {
 		logger.info(toString()+" connection state CHANGED to <"+state+">");
 		this.state = state;
+	}
+	
+
+	/**
+	 * Server side handler
+	 * reply to a connection handshake message
+	 * @param connectionHandshake
+	 */
+	protected void handleHandShake(ConnectionHandshake connectionHandshake){
+		logger.info("Received "+connectionHandshake + " in state <"+getState()+">");
+		if(getState()==ready){
+			//just send confirmation packet again
+			try{
+				sendFinalHandShake(connectionHandshake);
+			}catch(IOException io){}
+			return;
+		}
+
+		if (getState()<ready){
+			destination.setSocketID(connectionHandshake.getSocketID());
+
+			if(getState()<handshaking){
+				setState(handshaking);
+			}
+
+			try{
+				boolean handShakeComplete=handleSecondHandShake(connectionHandshake);
+				if(handShakeComplete){
+					logger.info("Client/Server handshake complete!");
+					setState(ready);
+					cc.init();
+					// This is for ServerSession
+					onSessionReady();
+				}
+			}catch(IOException ex){
+				//session invalid
+				logger.log(Level.WARNING,"Error processing ConnectionHandshake",ex);
+				setState(invalid);
+			}
+		}
 	}
 	
 	@Override

@@ -52,7 +52,7 @@ public abstract class UDTSession {
 
 	private static final Logger logger=Logger.getLogger(UDTSession.class.getName());
 
-	private final UDPEndPoint endPoint;
+	protected final UDPEndPoint endPoint;
 
 	protected int mode;
 	protected volatile boolean active;
@@ -78,7 +78,7 @@ public abstract class UDTSession {
 	protected final CongestionControl cc;
 	
 	private InetSocketAddress targetAddress;
-	private long transferSize = 0;
+	protected long transferSize = 0;
 	
 	//session cookie created during handshake
 	protected long sessionCookie=0;
@@ -119,14 +119,9 @@ public abstract class UDTSession {
 	protected Long initialSequenceNumber=null;
 	
 	protected final long mySocketID;
-	protected SessionHandlers sessionHandlers;
 	
 	private final static AtomicLong nextSocketID=new AtomicLong(20+new Random().nextInt(5000));
 	public final ReceiveBuffer receiveBuffer;
-	
-	public void registeSessionHandlers(SessionHandlers sessionHandlers) {
-		this.sessionHandlers = sessionHandlers;
-	}
 	
 	final int chunksize;
 	
@@ -155,6 +150,9 @@ public abstract class UDTSession {
 		sender=new UDTSender(this);
 	}
 	
+	public void startSender() {
+		sender.start();
+	}
 	
 	public abstract void received(UDTPacket packet, Destination peer);
 	
@@ -164,9 +162,7 @@ public abstract class UDTSession {
 			System.out.println("data packet overload");
 			return false;
 		}
-		
-		if(null != sessionHandlers)
-			return sessionHandlers.onDataReceive(this, packet);
+		onDataReceive(packet);
 		return false;
 	}
 	
@@ -240,6 +236,11 @@ public abstract class UDTSession {
 			shutdown.setDestinationID(getDestination().getSocketID());
 			shutdown.setSession(this);
 			endPoint.doSend(this, shutdown);
+			/*
+			if(null != sessionHandlers)
+				sessionHandlers.onSessionEnd(this);
+*/
+			onSessionEnd();
 			receiver.stop();
 			endPoint.stop();
 		}
@@ -367,83 +368,6 @@ public abstract class UDTSession {
 		endPoint.doSend(this, finalConnectionHandshake);
 	}
 
-	// Client side handler
-	protected void handleConnectionHandshake(ConnectionHandshake hs, Destination peer){
-		if (getState()==handshaking) {
-			//logger.info("Received initial handshake response from "+peer+"\n"+hs);
-			if(hs.getConnectionType()==ConnectionHandshake.CONNECTION_SERVER_ACK){
-				try{
-					//TODO validate parameters sent by peer
-					long peerSocketID=hs.getSocketID();
-					sessionCookie=hs.getCookie();
-					destination.setSocketID(peerSocketID);
-					setState(handshaking+1);
-				}catch(Exception ex){
-					logger.log(Level.WARNING,"Error creating socket",ex);
-					setState(invalid);
-				}
-				return;
-			}
-			else{
-				logger.info("Unexpected type of handshake packet received");
-				setState(invalid);
-			}
-		}
-		else if(getState()==handshaking+1){
-			try{
-				// logger.info("Received confirmation handshake response from "+peer+"\n"+hs);
-				//TODO validate parameters sent by peer
-				transferSize = hs.getTransferSize();
-				setState(ready);
-				cc.init();
-				// This is for ClientSession
-				endPoint.onSessionReady(this);
-			}catch(Exception ex){
-				logger.log(Level.WARNING,"Error creating socket",ex);
-				setState(invalid);
-			}
-		}
-	}
-
-	/**
-	 * Server side handler
-	 * reply to a connection handshake message
-	 * @param connectionHandshake
-	 */
-	protected void handleHandShake(ConnectionHandshake connectionHandshake){
-		logger.info("Received "+connectionHandshake + " in state <"+getState()+">");
-		if(getState()==ready){
-			//just send confirmation packet again
-			try{
-				sendFinalHandShake(connectionHandshake);
-			}catch(IOException io){}
-			return;
-		}
-
-		if (getState()<ready){
-			destination.setSocketID(connectionHandshake.getSocketID());
-
-			if(getState()<handshaking){
-				setState(handshaking);
-			}
-
-			try{
-				boolean handShakeComplete=handleSecondHandShake(connectionHandshake);
-				if(handShakeComplete){
-					logger.info("Client/Server handshake complete!");
-					setState(ready);
-					cc.init();
-					// This is for ServerSession
-					endPoint.onSessionReady(this);
-				}
-			}catch(IOException ex){
-				//session invalid
-				logger.log(Level.WARNING,"Error processing ConnectionHandshake",ex);
-				setState(invalid);
-			}
-		}
-	}
-
 	
 	public String toString(){
 		StringBuilder sb=new StringBuilder();
@@ -469,6 +393,7 @@ public abstract class UDTSession {
 			packet.setLength(sendlen);
 		}finally{
 			flowWindow.produce();
+			endPoint.needtoSend();
 		}
 		return len;
 	}
@@ -508,11 +433,23 @@ public abstract class UDTSession {
 		return endPoint.doSend(this, packet);
 	}
 
-	public void onDataRequest() {
-		if(null == sessionHandlers)
-			return;
+	public abstract boolean onSessionDataRequest();
+	public abstract void onSessionPrepare();
+	public abstract void onShutdown();
+	public abstract void onSessionReady();
+	public abstract void onSessionEnd();
+	public abstract boolean onDataReceive(DataPacket packet);
+	
+	public boolean onDataRequest() {
+/*
+		if(flowWindow.isLow() && null != sessionHandlers)
+			return sessionHandlers.onDataRequest();
+*/
+
 		if(flowWindow.isLow())
-			sessionHandlers.onDataRequest();
+				return onSessionDataRequest();
+
+		return true;
 	}
 
 

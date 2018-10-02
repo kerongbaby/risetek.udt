@@ -2,22 +2,82 @@ package udt.util;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import udt.AppData;
-import udt.SessionHandlers;
-import udt.UDTClient;
-import udt.UDTSession;
+import udt.ClientSession;
+import udt.ServerSession;
+import udt.UDPEndPoint;
 import udt.packets.DataPacket;
+import udt.packets.Destination;
 
-/**
- * 请求并接收DServer发送数据的客户端程序，用于调试和度量
- */
-public class DClient extends Application implements SessionHandlers {
-	long time_passed;
+public class DClient extends ClientSession {
 
-	public void run(){
-		System.out.println("do nothing");
+	public DClient(UDPEndPoint client, Destination destination) throws SocketException {
+		super(client, destination);
+	}
+
+	private long time_passed;
+
+	@Override
+	public void onSessionReady() {
+		time_passed = System.currentTimeMillis();
+	}
+
+	@Override
+	public void onShutdown() {
+		System.out.println("session shutdown");
+	}
+
+	@Override
+	public void onSessionPrepare() {
+
+	}
+
+	@Override
+	public boolean onSessionDataRequest() {
+		return true;
+	}
+
+	@Override
+	public void onSessionEnd() {
+		System.out.println(getStatistics());
+
+		NumberFormat format = NumberFormat.getNumberInstance();
+		format.setMaximumFractionDigits(3);
+		time_passed = System.currentTimeMillis() - time_passed;
+		double rate= getTransferSize() / 1000.0 / time_passed;
+		System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
+	}
+
+	private long tansferSize = 0;
+	
+	@Override
+	public boolean onDataReceive(DataPacket packet) {
+		for(;;) {
+			AppData data;
+			if((data = receiveBuffer.poll()) == null)
+				break;
+			
+			tansferSize += data.data.length;
+
+			if(tansferSize >= getTransferSize())
+			{
+				try {
+					shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+		}
+		return true;
 	}
 	
 	public static void main(String[] fullArgs) throws Exception{
@@ -32,80 +92,70 @@ public class DClient extends Application implements SessionHandlers {
 			System.exit(1);
 		}
 		
-		DClient dclient = new DClient();
-		
 		InetAddress myHost=InetAddress.getLocalHost();
-		UDTClient client=new UDTClient(myHost) {
+		UDPEndPoint client=new UDPEndPoint(myHost) {
 			@Override
-			public void onSessionReady(UDTSession session) {
-				dclient.time_passed = System.currentTimeMillis();
-				session.registeSessionHandlers(dclient);
+			public ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint)
+					throws SocketException, UnknownHostException {
+				return null;
 			}
 
-			@Override
-			public void onSessionPrepare(UDTSession session) {
-
-				System.out.println("should do nothing");
-			}
 		};
+		client.start();
 		
-		client.connect(serverHost, serverPort);
-		
-		synchronized(dclient) {
-			dclient.wait();
-		}
-		System.out.println("bye my world!");
+		InetAddress address=InetAddress.getByName(serverHost);
+		Destination destination=new Destination(address,serverPort);
+		//create client session...
+		ClientSession clientSession=new DClient(client,destination);
+		client.addSession(clientSession.getSocketID(), clientSession);
+		clientSession.connect();
 	}
+	
 	
 	public static void usage(){
 		System.out.println("Usage: java -cp .. udt.util.DClient <server_ip>");
 	}
+	
+	protected static boolean verbose=false;
 
-	@Override
-	public void onDataRequest() {
-		// do nothing
+	protected static String localIP=null;
+
+	protected static int localPort=-1;
+
+	public void configure(){
+		if(verbose){
+			Logger.getLogger("udt").setLevel(Level.INFO);
+		}
+		else{
+			Logger.getLogger("udt").setLevel(Level.OFF);
+		}
 	}
-
-	private long tansferSize = 0;
-	@Override
-	public boolean onDataReceive(UDTSession session, DataPacket packet) {
-		for(;;) {
-			AppData data;
-			if((data = session.receiveBuffer.poll()) == null)
-				break;
-			
-			tansferSize += data.data.length;
-			
-			if(tansferSize >= session.getTransferSize())
+	
+	
+	protected static String[] parseOptions(String[] args){
+		List<String>newArgs=new ArrayList<String>();
+		for(String arg: args){
+			if(arg.startsWith("-")){
+				parseArg(arg);
+			}
+			else
 			{
-				try {
-					session.shutdown();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				System.out.println(session.getStatistics());
-
-				NumberFormat format = NumberFormat.getNumberInstance();
-				format.setMaximumFractionDigits(3);
-				time_passed = System.currentTimeMillis() - time_passed;
-				double rate= session.getTransferSize() / 1000.0 / time_passed;
-				System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
-
-				synchronized(this) {
-					notify();
-				}
+				newArgs.add(arg);
 			}
 		}
-		return true;
-		}
-
-	@Override
-	public void onShutdown() {
-		System.out.println("session shutdown");
+		return newArgs.toArray(new String[newArgs.size()]);
 	}
-
-	@Override
-	public void onSessionEnd(UDTSession session) {
-		System.out.println("session end");
+	
+	protected static void parseArg(String arg){
+		if("-v".equals(arg) || "--verbose".equals(arg)){
+			verbose=true;
+			return;
+		}
+		if(arg.startsWith("--localIP")){
+			localIP=arg.split("=")[1];
+		}
+		if(arg.startsWith("--localPort")){
+			localPort=Integer.parseInt(arg.split("=")[1]);
+		}
 	}
 }

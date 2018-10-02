@@ -530,8 +530,11 @@ public class UDTReceiver {
 	}
 	
 	protected void onShutdown()throws IOException{
+		/*
 		if(null != session.sessionHandlers)
 			session.sessionHandlers.onShutdown();
+		*/
+		session.onShutdown();
 		stop();
 	}
 
