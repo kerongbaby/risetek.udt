@@ -98,7 +98,6 @@ public class UDTSender {
 
 	private final boolean storeStatistics;
 	private Timer timer = new Timer(false);
-	private long timer_period = 0;
 
 	public UDTSender(UDTSession session) {
 		// if(!session.isReady())throw new IllegalStateException("UDTSession is
@@ -128,12 +127,13 @@ public class UDTSender {
 
 		long interval = (long) _session.getCongestionControl().getSendInterval();
 		long cap = _session.getCongestionControl().getEstimatedLinkCapacity();
-		System.out.format("interval %d cap: %d\r\n", interval, cap);
-		timer_period = interval;
+		long capval = cap/1024;
+		capval += interval; //30;
+		long timer_period = interval;
 		int totalSend = 0;
+
 		try {
-//			for (int loop = 0; loop < numPackets; loop++) 
-			for (; totalSend < 100*1024;) 
+			do
 			{
 				// if the sender's loss list is not empty
 				Long entry = senderLossList.getFirstEntry();
@@ -150,10 +150,12 @@ public class UDTSender {
 				if (unAcknowledged >= _session.getCongestionControl().getCongestionWindowSize()) {
 					statistics.incNumberOfCCWindowExceededEvents();
 					// waitForAck();
-					// System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
-					timer_period = 200;
-					timer.schedule(new SenderTask(), timer_period);
-					return;
+					System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
+					// TODO: calculate for wait timer period by unAcknowledged!
+					timer_period = unAcknowledged; // 100;
+					// timer.schedule(new SenderTask(), timer_period);
+					//return;
+					break;
 				} else if (unAcknowledged < _session.getFlowWindowSize()) {
 					// check for application data
 					boolean havemore = _session.onDataRequest();
@@ -166,22 +168,24 @@ public class UDTSender {
 						largestSentSequenceNumber = dp.getPacketSequenceNumber();
 					} else {
 						statistics.incNumberOfMissingDataEvents();
-						if(!havemore) {
+						if(!havemore && sendBuffer.isEmpty()) {
 							System.out.println("no datas to send, stop sender");
 							return;
 						}
 						break;
 					}
-				} else
+				} else {
+					timer_period *= 2;
 					break;
-			}
+				}
+			}while(totalSend < capval*1024);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
 		System.out.println("totalSend: " + totalSend);
+		System.out.format("timer_period %d cap: %d [%d]\r\n", timer_period, cap, capval);
 		if(!_session.isShutdown() && null != timer) {
-			// System.out.println("timer:" + timer_period);
 			timer.schedule(new SenderTask(), timer_period);
 		}
 	}

@@ -236,10 +236,6 @@ public abstract class UDTSession {
 			shutdown.setDestinationID(getDestination().getSocketID());
 			shutdown.setSession(this);
 			endPoint.doSend(this, shutdown);
-			/*
-			if(null != sessionHandlers)
-				sessionHandlers.onSessionEnd(this);
-*/
 			onSessionEnd();
 			receiver.stop();
 			endPoint.stop();
@@ -379,22 +375,19 @@ public abstract class UDTSession {
 	}
 	
 
-	public int write(byte[] b, int len) throws IOException {
+	public int write(byte[] b, int len) {
 		DataPacket packet = flowWindow.getForProducer();
 		if(packet==null)
 			return 0;
 
-		try{
-			packet.setPacketSequenceNumber(sender.getNextSequenceNumber());
-			packet.setSession(this);
-			packet.setDestinationID(getDestination().getSocketID());
-			int sendlen=Math.min(len,chunksize);
-			packet.setData(b);
-			packet.setLength(sendlen);
-		}finally{
-			flowWindow.produce();
-			endPoint.needtoSend();
-		}
+		packet.setPacketSequenceNumber(sender.getNextSequenceNumber());
+		packet.setSession(this);
+		packet.setDestinationID(getDestination().getSocketID());
+		int sendlen=Math.min(len,chunksize);
+		packet.setData(b);
+		packet.setLength(sendlen);
+		flowWindow.produce();
+		// endPoint.needtoSend();
 		return len;
 	}
 

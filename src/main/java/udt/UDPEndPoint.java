@@ -62,7 +62,7 @@ import udt.util.Util;
  * the UDPEndpoint takes care of sending and receiving UDP network packets,
  * dispatching them to the correct {@link UDTSession}
  */
-public abstract class UDPEndPoint {
+public abstract class UDPEndPoint implements Runnable {
 	private static final Logger logger=Logger.getLogger(UDPEndPoint.class.getName());
 
 	private final DatagramChannel dgChannel;
@@ -82,7 +82,7 @@ public abstract class UDPEndPoint {
 
 	public static final int DATAGRAM_SIZE=1400;
 
-	public abstract ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException,UnknownHostException;
+	public abstract UDTSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException, IOException;
 
 	/**
 	 * bind to any local port on the given host address
@@ -94,6 +94,12 @@ public abstract class UDPEndPoint {
 		this(localAddress,0);
 	}
 
+	
+	public UDTSession createClientSession(Destination destination) throws SocketException, IOException {
+		UDTSession creator = onSessionCreate(destination, this);
+		addSession(creator.getSocketID(), creator);
+		return creator;
+	}
 	/**
 	 * Bind to the given address and port
 	 * @param localAddress
@@ -114,6 +120,13 @@ public abstract class UDPEndPoint {
 		dgChannel.socket().setReuseAddress(true);
 		
 		dgChannel.configureBlocking(false);
+
+		//start receive thread
+		Thread t=UDTThreadFactory.get().newThread(this);
+		t.setName("UDPEndpoint-"+t.getName());
+		t.setDaemon(true);
+		t.start();
+		logger.info("UDTEndpoint started.");
 	}
 
 	/**
@@ -125,29 +138,13 @@ public abstract class UDPEndPoint {
 	public UDPEndPoint()throws IOException {
 		this(null,0);
 	}
-
-	/**
-	 * start the endpoint. If the serverSocketModeEnabled flag is <code>true</code>,
-	 * a new connection can be handed off to an application. The application needs to
-	 * call #accept() to get the socket
-	 * @param serverSocketModeEnabled
-	 */
-	public void start(){
-		//start receive thread
-		Runnable receive=new Runnable(){
-			public void run(){
-				try{
-					doReceive();
-				}catch(Exception ex){
-					logger.log(Level.WARNING,"",ex);
-				}
-			}
-		};
-		Thread t=UDTThreadFactory.get().newThread(receive);
-		t.setName("UDPEndpoint-"+t.getName());
-		// t.setDaemon(true);
-		t.start();
-		logger.info("UDTEndpoint started.");
+	
+	public void run(){
+		try{
+			doReceive();
+		}catch(Exception ex){
+			logger.log(Level.WARNING,"",ex);
+		}
 	}
 
 	public void stop() throws IOException {
@@ -231,10 +228,6 @@ public abstract class UDPEndPoint {
 							session.received(packet,peer);
 
 							if(session.getState() == UDTSession.shutdown) {
-								/*
-								if(null != session.sessionHandlers)
-									session.sessionHandlers.onSessionEnd(session);
-								*/
 								session.onSessionEnd();
 								sessions.remove(session.getSocketID());
 							}
@@ -249,7 +242,6 @@ public abstract class UDPEndPoint {
 								addSession(destID, session);
 							}
 							else if(session==null){
-								// session=new ServerSession(peer,this);
 								session=onSessionCreate(peer,this);
 								sessionsBeingConnected.put(p,session);
 								sessions.put(session.getSocketID(), session);
@@ -309,7 +301,4 @@ public abstract class UDPEndPoint {
 		return send;
 	}
 
-	public String toString(){
-		return  "UDPEndpoint port="+dgChannel.socket().getLocalPort();
-	}
 }

@@ -61,12 +61,13 @@ public abstract class ClientSession extends UDTSession {
 			this.state = state;
 			if(state == (handshaking+1)) {
 				try {
-					System.out.println("sendSecondHandshake");
 					sendSecondHandshake();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+			} else if(state == shutdown) {
+				System.out.println("TODO: should shutdown EndPoint and session!");
 			}
 	}
 	/**
@@ -76,7 +77,7 @@ public abstract class ClientSession extends UDTSession {
 	 * @throws IOException
 	 */
 	Timer timer = new Timer();
-	public void connect() throws InterruptedException,IOException{
+	public void connect() throws IOException{
 		if(getState() == ready)
 			return;
 		if(getState() == invalid)
@@ -93,7 +94,6 @@ public abstract class ClientSession extends UDTSession {
 				if(getState()<=handshaking){
 					setState(handshaking);
 					try {
-						System.out.println("sendInitialHandShake");
 						sendInitialHandShake();
 					} catch (IOException e) {
 						e.printStackTrace();

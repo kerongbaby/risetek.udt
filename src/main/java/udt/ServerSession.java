@@ -34,7 +34,6 @@ package udt;
 
 import java.io.IOException;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,7 +49,7 @@ public abstract class ServerSession extends UDTSession {
 
 	private static final Logger logger=Logger.getLogger(ServerSession.class.getName());
 
-	public ServerSession(Destination peer, UDPEndPoint endPoint)throws SocketException,UnknownHostException{
+	public ServerSession(Destination peer, UDPEndPoint endPoint)throws SocketException {
 		super("ServerSession localPort="+endPoint.getLocalPort()+" peer="+peer.getAddress()+":"+peer.getPort(),peer, endPoint);
 		logger.info("Created "+toString()+" talking to "+peer.getAddress()+":"+peer.getPort());
 	}

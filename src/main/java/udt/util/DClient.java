@@ -3,7 +3,6 @@ package udt.util;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +11,8 @@ import java.util.logging.Logger;
 
 import udt.AppData;
 import udt.ClientSession;
-import udt.ServerSession;
 import udt.UDPEndPoint;
+import udt.UDTSession;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
 
@@ -92,23 +91,24 @@ public class DClient extends ClientSession {
 			System.exit(1);
 		}
 		
-		InetAddress myHost=InetAddress.getLocalHost();
-		UDPEndPoint client=new UDPEndPoint(myHost) {
+		UDPEndPoint endPoint =new UDPEndPoint(InetAddress.getLocalHost()) {
 			@Override
-			public ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint)
-					throws SocketException, UnknownHostException {
-				return null;
+			public UDTSession onSessionCreate(Destination peer, UDPEndPoint endPoint)
+					throws SocketException, IOException {
+				ClientSession session = new DClient(this, peer);
+				session.connect();
+				return session;
 			}
 
 		};
-		client.start();
 		
+		//create client session...
 		InetAddress address=InetAddress.getByName(serverHost);
 		Destination destination=new Destination(address,serverPort);
-		//create client session...
-		ClientSession clientSession=new DClient(client,destination);
-		client.addSession(clientSession.getSocketID(), clientSession);
-		clientSession.connect();
+
+		endPoint.createClientSession(destination);
+		
+		// TODO: 如果我们要发送数据，可以获取session,并发送。
 	}
 	
 	

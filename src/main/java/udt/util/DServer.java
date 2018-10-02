@@ -1,9 +1,7 @@
 
 package udt.util;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.text.NumberFormat;
 
 import udt.ServerSession;
@@ -14,10 +12,10 @@ import udt.packets.Destination;
 public class DServer extends ServerSession {
 
 	private int sendCounter = 0;
-	private byte[] buf2=new byte[packetSize];
+	private byte[] buf=new byte[packetSize];
 	private long period = System.currentTimeMillis();
 
-	public DServer(Destination peer, UDPEndPoint endPoint) throws SocketException, UnknownHostException {
+	public DServer(Destination peer, UDPEndPoint endPoint) throws SocketException {
 		super(peer, endPoint);
 	}
 
@@ -34,22 +32,17 @@ public class DServer extends ServerSession {
 	@Override
 	public boolean onSessionDataRequest() {
 		
-		for(int index = 0; index < 1; index++) 
+		// for(int index = 0; index < 10; index++)
+		for(;;)
 		{
 			if(sendCounter >= numberPackets)
 				return false;
 
-			// System.out.println("request to send:" + sendCounter);
-			try {
-				if(write(buf2, packetSize) == 0) {
-					System.out.println("short send at: " + sendCounter);
-					break;
-				} else
-					sendCounter++;
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			if(write(buf, packetSize) == 0) {
+				// System.out.println("flowWindow fulled at: " + sendCounter);
+				break;
+			} else
+				sendCounter++;
 		}
 		return true;
 	}
@@ -86,11 +79,11 @@ public class DServer extends ServerSession {
 			new UDPEndPoint(InetAddress.getLocalHost(), 18008){
 
 				@Override
-				public ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException,UnknownHostException {
+				public ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException {
 
 					return new DServer(peer, endPoint);
 				}
-		}.start();
+		};
 			
 		}catch(Exception ex){
 			throw new RuntimeException(ex);

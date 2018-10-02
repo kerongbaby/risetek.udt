@@ -125,7 +125,7 @@ public class UDTReceiver {
 	//instant when the session was created (for expiry checking)
 	private final long sessionUpSince;
 	//milliseconds to timeout a new session that stays idle
-	private final long IDLE_TIMEOUT = 2*60*1000;
+	private final long IDLE_TIMEOUT = 10*1000;
 
 	//buffer size for storing data
 	private final long bufferSize;
@@ -530,10 +530,6 @@ public class UDTReceiver {
 	}
 	
 	protected void onShutdown()throws IOException{
-		/*
-		if(null != session.sessionHandlers)
-			session.sessionHandlers.onShutdown();
-		*/
 		session.onShutdown();
 		stop();
 	}
