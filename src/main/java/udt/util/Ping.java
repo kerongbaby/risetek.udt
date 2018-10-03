@@ -9,16 +9,15 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import udt.AppData;
 import udt.ClientSession;
 import udt.UDPEndPoint;
 import udt.UDTSession;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
 
-public class DClient extends ClientSession {
+public class Ping extends ClientSession {
 
-	public DClient(UDPEndPoint client, Destination destination) throws SocketException {
+	public Ping(UDPEndPoint client, Destination destination) throws SocketException {
 		super(client, destination);
 	}
 
@@ -27,6 +26,7 @@ public class DClient extends ClientSession {
 	@Override
 	public void onSessionReady() {
 		time_passed = System.currentTimeMillis();
+		startSender();
 	}
 
 	@Override
@@ -36,19 +36,42 @@ public class DClient extends ClientSession {
 
 	@Override
 	public void onSessionPrepare() {
-
-	}
-
-	@Override
-	public boolean onSessionDataRequest() {
-		return true;
+		// setTransferSize(packetSize * numberPackets);
 	}
 
 	@Override
 	public void onSendEmpty() {
-		
+		if(sendCounter < numberPackets)
+			return;
+
+
+		try {
+			shutdown();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
+	private final static int packetSize = 512;
+	private final static int numberPackets = (8*1024*1024)/packetSize;
+	private int sendCounter = 0;
+	private byte[] buf=new byte[packetSize];
+	
+	@Override
+	public boolean onSessionDataRequest() {
+		for(;;) {
+			if(sendCounter >= numberPackets)
+				return false;
+
+			if(write(buf, packetSize) == 0) {
+				// System.out.println("flowWindow fulled at: " + sendCounter);
+				break;
+			} else
+				sendCounter++;
+		}
+		return true;
+	}
+
 	@Override
 	public void onSessionEnd() {
 		System.out.println(getStatistics());
@@ -60,27 +83,10 @@ public class DClient extends ClientSession {
 		System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 	}
 
-	private long tansferSize = 0;
-	
 	@Override
 	public boolean onDataReceive(DataPacket packet) {
-		for(;;) {
-			AppData data;
-			if((data = receiveBuffer.poll()) == null)
-				break;
-			
-			tansferSize += data.data.length;
-
-			if(tansferSize >= getTransferSize())
-			{
-				try {
-					shutdown();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-		}
+		// draw out receive buffer.
+		for(; receiveBuffer.poll() != null;);
 		return true;
 	}
 	
@@ -100,7 +106,7 @@ public class DClient extends ClientSession {
 			@Override
 			public UDTSession onSessionCreate(Destination peer, UDPEndPoint endPoint)
 					throws SocketException, IOException {
-				ClientSession session = new DClient(this, peer);
+				ClientSession session = new Ping(this, peer);
 				session.connect();
 				return session;
 			}
@@ -112,8 +118,6 @@ public class DClient extends ClientSession {
 		Destination destination=new Destination(address,serverPort);
 
 		endPoint.createClientSession(destination);
-		
-		// TODO: 如果我们要发送数据，可以获取session,并发送。
 	}
 	
 	

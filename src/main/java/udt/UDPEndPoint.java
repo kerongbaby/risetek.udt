@@ -295,10 +295,7 @@ public abstract class UDPEndPoint implements Runnable {
 	protected int doSend(UDTSession session, UDTPacket packet)throws IOException{
 		byte[]data=packet.getEncoded();
 		ByteBuffer bb = ByteBuffer.wrap(data);
-		int send = dgChannel.send(bb, session.getTargetAddress());
-		if(send <= 0)
-			System.out.println("doSend failed:" + send);
-		return send;
+		return dgChannel.send(bb, session.getTargetAddress());
 	}
 
 }

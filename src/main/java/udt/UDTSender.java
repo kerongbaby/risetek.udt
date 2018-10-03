@@ -128,17 +128,26 @@ public class UDTSender {
 		long interval = (long) _session.getCongestionControl().getSendInterval();
 		long cap = _session.getCongestionControl().getEstimatedLinkCapacity();
 		long capval = cap/1024;
-		capval += interval; //30;
+//		capval += interval + 1;
+		capval += interval + 10;
 		long timer_period = interval;
 		int totalSend = 0;
 
 		try {
-			do
-			{
+			while(totalSend < capval*1024) {
 				// if the sender's loss list is not empty
 				Long entry = senderLossList.getFirstEntry();
 				if (entry != null) {
-					handleRetransmit(entry);
+
+					int len = handleRetransmit(entry);
+					if(len <= 0) {
+						// TODO: 发送失败，我们应该修改拥塞数据？
+						System.out.println("lost missing? " + entry);
+						timer_period = 50;
+						break;
+					}
+
+					totalSend += len;
 					continue;
 				}
 
@@ -150,7 +159,7 @@ public class UDTSender {
 				if (unAcknowledged >= _session.getCongestionControl().getCongestionWindowSize()) {
 					statistics.incNumberOfCCWindowExceededEvents();
 					// waitForAck();
-					System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
+					// System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
 					// TODO: calculate for wait timer period by unAcknowledged!
 					timer_period = unAcknowledged; // 100;
 					// timer.schedule(new SenderTask(), timer_period);
@@ -161,10 +170,15 @@ public class UDTSender {
 					boolean havemore = _session.onDataRequest();
 					DataPacket dp = _session.flowWindow.consumeData();
 					if (dp != null) {
-						int send;
-						if((send = send(_session, dp)) <= 0)
+						int len;
+						if((len = send(_session, dp)) <= 0) {
+							System.out.format("send failed number: %d\r\n", dp.getPacketSequenceNumber());
+							senderLossList.insert(dp.getPacketSequenceNumber());
+							// TODO: 发送失败，我们应该修改拥塞数据？
+							timer_period = 50;
 							break;
-						totalSend += send;
+						}
+						totalSend += len;
 						largestSentSequenceNumber = dp.getPacketSequenceNumber();
 					} else {
 						statistics.incNumberOfMissingDataEvents();
@@ -172,19 +186,23 @@ public class UDTSender {
 							System.out.println("no datas to send, stop sender");
 							return;
 						}
+						timer_period = unAcknowledged;
 						break;
 					}
 				} else {
-					timer_period *= 2;
+					// TODO: 这个时候没有受限于拥塞，但是受限于流控
+					// 发送间隔显然与 unAcknowledged 数目有关
+					// 是否也与 LinkCapacity 相关呢？如果相关，应该怎么带入？
+					timer_period = unAcknowledged / 10;
 					break;
 				}
-			}while(totalSend < capval*1024);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		System.out.println("totalSend: " + totalSend);
-		System.out.format("timer_period %d cap: %d [%d]\r\n", timer_period, cap, capval);
+		//System.out.println("totalSend: " + totalSend);
+		//System.out.format("timer_period %d [%d] cap: %d [%d]\r\n", timer_period, interval, cap, capval);
 		if(!_session.isShutdown() && null != timer) {
 			timer.schedule(new SenderTask(), timer_period);
 		}
@@ -222,23 +240,24 @@ public class UDTSender {
 				dgSendInterval.end();
 				dgSendTime.begin();
 			}
-			if ((val = endpoint.doSend(session, p)) <= 0)
-				System.out.println("send datapacket failed");
-			else {
-				if (storeStatistics) {
-					dgSendTime.end();
-					dgSendInterval.begin();
-					throughput.end();
-					throughput.begin();
-				}
-				// store data for potential retransmit
-				int l = p.getLength();
-				byte[] data = new byte[l];
-				System.arraycopy(p.getData(), 0, data, 0, l);
-				sendBuffer.put(p.getPacketSequenceNumber(), data);
-				unacknowledged.incrementAndGet();
-				statistics.incNumberOfSentDataPackets();
+			val = endpoint.doSend(session, p);
+
+			if (storeStatistics) {
+				dgSendTime.end();
+				dgSendInterval.begin();
+				throughput.end();
+				throughput.begin();
 			}
+			// store data for potential retransmit
+/*			
+			int l = p.getLength();
+			byte[] data = new byte[l];
+			System.arraycopy(p.getData(), 0, data, 0, l);
+*/
+//			sendBuffer.put(p.getPacketSequenceNumber(), data);
+			sendBuffer.put(p.getPacketSequenceNumber(), p.getData());
+			unacknowledged.incrementAndGet();
+			statistics.incNumberOfSentDataPackets();
 		}
 		return val;
 	}
@@ -283,6 +302,7 @@ public class UDTSender {
 		// need to remove all sequence numbers up the ack number from the
 		// sendBuffer
 		boolean removed = false;
+		// System.out.format("ACK from: %d to %d\r\n", lastAckSequenceNumber, ackNumber);
 		for (long s = lastAckSequenceNumber; s < ackNumber; s++) {
 			synchronized (sendLock) {
 				removed = sendBuffer.remove(s) != null;
@@ -295,6 +315,11 @@ public class UDTSender {
 		lastAckSequenceNumber = Math.max(lastAckSequenceNumber, ackNumber);
 		// send ACK2 packet to the receiver
 		sendAck2(ackNumber);
+		
+		int unAcknowledged = unacknowledged.get();
+		if(0 == unAcknowledged)
+			_session.onSendEmpty();
+		
 		statistics.incNumberOfACKReceived();
 		if (storeStatistics)
 			statistics.storeParameters();
@@ -344,21 +369,23 @@ public class UDTSender {
 	 * 
 	 * @param entry
 	 */
-	protected void handleRetransmit(Long seqNumber) {
+	private int handleRetransmit(Long seqNumber) {
+		int len = 0;
 		try {
 			// retransmit the packet and remove it from the list
 			byte[] data = sendBuffer.get(seqNumber);
-			if (data != null) {
-				retransmit.setPacketSequenceNumber(seqNumber);
-				retransmit.setSession(_session);
-				retransmit.setDestinationID(_session.getDestination().getSocketID());
-				retransmit.setData(data);
-				endpoint.doSend(_session, retransmit);
-				statistics.incNumberOfRetransmittedDataPackets();
-			}
+			assert(data != null);
+
+			retransmit.setPacketSequenceNumber(seqNumber);
+			retransmit.setSession(_session);
+			retransmit.setDestinationID(_session.getDestination().getSocketID());
+			retransmit.setData(data);
+			len = endpoint.doSend(_session, retransmit);
+			statistics.incNumberOfRetransmittedDataPackets();
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "", e);
 		}
+		return len;
 	}
 
 	/**

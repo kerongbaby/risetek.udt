@@ -432,13 +432,9 @@ public abstract class UDTSession {
 	public abstract void onSessionReady();
 	public abstract void onSessionEnd();
 	public abstract boolean onDataReceive(DataPacket packet);
+	public abstract void onSendEmpty();
 	
 	public boolean onDataRequest() {
-/*
-		if(flowWindow.isLow() && null != sessionHandlers)
-			return sessionHandlers.onDataRequest();
-*/
-
 		if(flowWindow.isLow())
 				return onSessionDataRequest();
 

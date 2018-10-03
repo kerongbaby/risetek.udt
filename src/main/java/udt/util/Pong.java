@@ -9,13 +9,11 @@ import udt.UDPEndPoint;
 import udt.packets.DataPacket;
 import udt.packets.Destination;
 
-public class DServer extends ServerSession {
+public class Pong extends ServerSession {
 
-	private int sendCounter = 0;
-	private byte[] buf=new byte[packetSize];
 	private long period = System.currentTimeMillis();
 
-	public DServer(Destination peer, UDPEndPoint endPoint) throws SocketException {
+	public Pong(Destination peer, UDPEndPoint endPoint) throws SocketException {
 		super(peer, endPoint);
 	}
 
@@ -30,33 +28,21 @@ public class DServer extends ServerSession {
 	}
 
 	@Override
-	public void onSendEmpty() {
-		
-	}
-	
-	@Override
 	public boolean onSessionDataRequest() {
-		
-		// for(int index = 0; index < 10; index++)
-		for(;;)
-		{
-			if(sendCounter >= numberPackets)
-				return false;
-
-			if(write(buf, packetSize) == 0) {
-				// System.out.println("flowWindow fulled at: " + sendCounter);
-				break;
-			} else
-				sendCounter++;
-		}
 		return true;
 	}
 
 	@Override
 	public void onSessionReady() {
-		startSender();
+		// startSender();
 	}
 
+	@Override
+	public void onSendEmpty() {
+		// TODO Auto-generated method stub
+		
+	}
+	
 	@Override
 	public void onSessionEnd() {
 		System.out.println(getStatistics());
@@ -69,8 +55,8 @@ public class DServer extends ServerSession {
 
 	@Override
 	public boolean onDataReceive(DataPacket packet) {
-		System.out.println("datas coming...");
-		return false;
+		for(;receiveBuffer.poll() != null;);
+		return true;
 	}
 	
 
@@ -86,7 +72,7 @@ public class DServer extends ServerSession {
 				@Override
 				public ServerSession onSessionCreate(Destination peer, UDPEndPoint endPoint) throws SocketException {
 
-					return new DServer(peer, endPoint);
+					return new Pong(peer, endPoint);
 				}
 		};
 			
@@ -96,4 +82,5 @@ public class DServer extends ServerSession {
 
 		Thread.currentThread().join();
 	}
+
 }
