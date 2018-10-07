@@ -66,6 +66,7 @@ public class PacketPairWindow extends CircularArray<Long>{
 		median=median/num;
 		
 		//median filtering
+/*
 		double upper=median*8;
 		double lower=median/8;
 		double total = 0;
@@ -73,6 +74,7 @@ public class PacketPairWindow extends CircularArray<Long>{
 		int count=0;
 		for(int i=0; i<num;i++){
 			val=circularArray.get(i).doubleValue();
+			// TODO: 这里出现的超出范围的值，是不是表明链路状态不好呢？
 			if(val<upper && val>lower){
 				total+=val;
 				count++;
@@ -80,6 +82,8 @@ public class PacketPairWindow extends CircularArray<Long>{
 		}
 		double res=total/count;
 		return res;
+*/
+		return median;
 	}
 	
 	/**

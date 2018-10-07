@@ -62,7 +62,7 @@ public class PacketHistoryWindow extends CircularArray<Long>{
 		
 		double AI;
 		double medianPacketArrivalSpeed;
-		double total=0;
+		long total=0;
 		int count=0;
 		int pos=position-1;
 		if(pos<0)pos=num;
@@ -78,6 +78,7 @@ public class PacketHistoryWindow extends CircularArray<Long>{
 		}while(count<num);
 		//compute median
 		AI=total / num;
+/*
 		//compute the actual value, filtering out intervals between AI/8 and AI*8
 		count=0;
 		total=0;
@@ -93,6 +94,8 @@ public class PacketHistoryWindow extends CircularArray<Long>{
 		else{
 			medianPacketArrivalSpeed=0; 
 		}
+*/
+		medianPacketArrivalSpeed=1e6/AI; 
 		return (long)Math.ceil(medianPacketArrivalSpeed);
 	}
 
