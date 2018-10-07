@@ -108,7 +108,7 @@ public class UDTSender {
 		senderLossList = new SenderLossList();
 		sendBuffer = new ConcurrentHashMap<Long, byte[]>(session.getFlowWindowSize(), 0.75f, 2);
 		lastAckSequenceNumber = 0;// session.getInitialSequenceNumber();
-		currentSequenceNumber = -1;// session.getInitialSequenceNumber()-1;
+		currentSequenceNumber = lastAckSequenceNumber - 1;// session.getInitialSequenceNumber()-1;
 		storeStatistics = Boolean.getBoolean("udt.sender.storeStatistics");
 		initMetrics();
 
@@ -124,17 +124,18 @@ public class UDTSender {
 	}
 	
 	public void sendTask() {
-
-		long interval = (long) _session.getCongestionControl().getSendInterval();
-		long cap = _session.getCongestionControl().getEstimatedLinkCapacity();
-		long capval = cap/1024;
-//		capval += interval + 1;
-		capval += interval + 10;
-		long timer_period = interval;
 		int totalSend = 0;
+		
+		long interval = (long) _session.getCongestionControl().getSendInterval();
+		long timer_period = interval;
 
+		// TODO: 发送间隔是按照10ms为单位的，但是java无法提供如此细致的分辨率，所以实际的发送
+		// 需要做些调整才对。
+		int index =0;
 		try {
-			while(totalSend < capval*1024) {
+
+			for(index=0;index<256;index++)
+			{
 				// if the sender's loss list is not empty
 				Long entry = senderLossList.getFirstEntry();
 				if (entry != null) {
@@ -143,7 +144,7 @@ public class UDTSender {
 					if(len <= 0) {
 						// TODO: 发送失败，我们应该修改拥塞数据？
 						System.out.println("lost missing? " + entry);
-						timer_period = 50;
+						// timer_period += 20;
 						break;
 					}
 
@@ -161,7 +162,7 @@ public class UDTSender {
 					// waitForAck();
 					// System.out.println("hold:" + unAcknowledged + " / " + _session.getCongestionControl().getCongestionWindowSize());
 					// TODO: calculate for wait timer period by unAcknowledged!
-					timer_period = unAcknowledged; // 100;
+					timer_period += unAcknowledged;
 					// timer.schedule(new SenderTask(), timer_period);
 					//return;
 					break;
@@ -172,10 +173,10 @@ public class UDTSender {
 					if (dp != null) {
 						int len;
 						if((len = send(_session, dp)) <= 0) {
-							System.out.format("send failed number: %d\r\n", dp.getPacketSequenceNumber());
+							System.out.format("send failed number: %d total send: %d\r\n", dp.getPacketSequenceNumber(), index);
 							senderLossList.insert(dp.getPacketSequenceNumber());
 							// TODO: 发送失败，我们应该修改拥塞数据？
-							timer_period = 50;
+							timer_period += 20 + unAcknowledged;
 							break;
 						}
 						totalSend += len;
@@ -186,14 +187,14 @@ public class UDTSender {
 							System.out.println("no datas to send, stop sender");
 							return;
 						}
-						timer_period = unAcknowledged;
+						timer_period = 20; // unAcknowledged;
 						break;
 					}
 				} else {
 					// TODO: 这个时候没有受限于拥塞，但是受限于流控
 					// 发送间隔显然与 unAcknowledged 数目有关
 					// 是否也与 LinkCapacity 相关呢？如果相关，应该怎么带入？
-					timer_period = unAcknowledged / 10;
+					// timer_period = 20; //unAcknowledged / 10;
 					break;
 				}
 			}
@@ -201,10 +202,10 @@ public class UDTSender {
 			e.printStackTrace();
 		}
 
-		//System.out.println("totalSend: " + totalSend);
-		//System.out.format("timer_period %d [%d] cap: %d [%d]\r\n", timer_period, interval, cap, capval);
+		// if(0!=index)		System.out.format("period %d %d index: %d\r\n", timer_period, index);
+
 		if(!_session.isShutdown() && null != timer) {
-			timer.schedule(new SenderTask(), timer_period);
+			timer.schedule(new SenderTask(), timer_period/10);
 		}
 	}
 	

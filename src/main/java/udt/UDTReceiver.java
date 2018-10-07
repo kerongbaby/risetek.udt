@@ -152,7 +152,7 @@ public class UDTReceiver {
 		this.sessionUpSince=System.currentTimeMillis();
 		this.statistics=session.getStatistics();
 		ackHistoryWindow = new AckHistoryWindow(16);
-		packetHistoryWindow = new PacketHistoryWindow(16);
+		packetHistoryWindow = new PacketHistoryWindow(128);
 		receiverLossList = new ReceiverLossList();
 		packetPairWindow = new PacketPairWindow(16);
 		bufferSize=session.getReceiveBufferSize();
@@ -320,6 +320,9 @@ public class UDTReceiver {
 				session.setState(UDTSession.shutdown);
 				return;
 			}
+
+			session.setState(UDTSession.shutdown);
+			return;
 		}
 		if(!sender.haveLostPackets()){
 			sendKeepAlive();
@@ -395,7 +398,7 @@ public class UDTReceiver {
 
 		//(8) need to send an ACK? Some cc algorithms use this
 		if(ackInterval>0){
-			if(n % ackInterval == 0)processACKEvent(false);
+			if(n++ % ackInterval == 0)processACKEvent(false);
 		}
 
 		session.onDataPacketReceived(dp);

@@ -52,8 +52,10 @@ public class Ping extends ClientSession {
 		}
 	}
 	
-	private final static int packetSize = 512;
-	private final static int numberPackets = (8*1024*1024)/packetSize;
+	private final static long PingSize = 100 * 1024 * 1024;
+
+	private final static int packetSize = 1024;
+	private final static int numberPackets = (int) (PingSize / packetSize);
 	private int sendCounter = 0;
 	private byte[] buf=new byte[packetSize];
 	
@@ -79,7 +81,7 @@ public class Ping extends ClientSession {
 		NumberFormat format = NumberFormat.getNumberInstance();
 		format.setMaximumFractionDigits(3);
 		time_passed = System.currentTimeMillis() - time_passed;
-		double rate= getTransferSize() / 1000.0 / time_passed;
+		double rate= PingSize / 1000.0 / time_passed;
 		System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
 	}
 

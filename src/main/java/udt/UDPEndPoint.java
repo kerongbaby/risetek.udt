@@ -116,7 +116,10 @@ public abstract class UDPEndPoint implements Runnable {
 		//set a time out to avoid blocking in doReceive()
 		dgChannel.socket().setSoTimeout(100000);
 		//buffer size
-		dgChannel.socket().setReceiveBufferSize(128*1024);
+		// 20181007 Send Buffer 超过256*1024似乎没有作用。
+		dgChannel.socket().setSendBufferSize(256*1024);
+		// 接收缓存增加有明显作用，性能更平滑。如果偏小，包到达率影响严重。
+		dgChannel.socket().setReceiveBufferSize(512*1024);
 		dgChannel.socket().setReuseAddress(true);
 		
 		dgChannel.configureBlocking(false);
@@ -200,8 +203,14 @@ public abstract class UDPEndPoint implements Runnable {
 
 		while(!stopped){
 			if(0 == selector.select(Util.getSYNTime()/100) ) {
-				for(UDTSession session:sessions.values())
+				for(UDTSession session:sessions.values()) {
 					session.received(null, null);
+					if(session.getState() == UDTSession.shutdown) {
+						System.out.println("remove shutdown session.");
+						session.onSessionEnd();
+						sessions.remove(session.getSocketID());
+					}
+				}
 				continue;
 			}
 

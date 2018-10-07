@@ -154,7 +154,7 @@ public class UDTCongestionControl implements CongestionControl {
 			 * 2) Set the congestion window size (CWND) to: CWND = A * (RTT + SYN) + 16
 			 */
 			
-			double A=packetArrivalRate/1000000.0*(roundTripTime+Util.getSYNTimeD());
+			double A=packetArrivalRate*(roundTripTime+Util.getSYNTimeD())/1000000.0;
 			congestionWindowSize=(long)A+16;
 			if(logger.isLoggable(Level.FINER)){
 				logger.finer("receive rate "+packetArrivalRate+" rtt "+roundTripTime+" set to window size: "+(A+16));
