@@ -173,6 +173,7 @@ public class UDTSender {
 					if (dp != null) {
 						int len;
 						if((len = send(_session, dp)) <= 0) {
+							statistics.incNumberOfFailedSentDataPackets();
 							System.out.format("send failed number: %d total send: %d\r\n", dp.getPacketSequenceNumber(), index);
 							senderLossList.insert(dp.getPacketSequenceNumber());
 							// TODO: 发送失败，我们应该修改拥塞数据？

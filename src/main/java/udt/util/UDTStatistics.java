@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class UDTStatistics {
 
 	private final AtomicInteger numberOfSentDataPackets=new AtomicInteger(0);
+	private final AtomicInteger numberOfFailedSentDataPackets=new AtomicInteger(0);
 	private final AtomicInteger numberOfReceivedDataPackets=new AtomicInteger(0);
 	private final AtomicInteger numberOfDuplicateDataPackets=new AtomicInteger(0);
 	private final AtomicInteger numberOfMissingDataEvents=new AtomicInteger(0);
@@ -75,6 +76,9 @@ public class UDTStatistics {
 	public int getNumberOfSentDataPackets() {
 		return numberOfSentDataPackets.get();
 	}
+	public int getNumberOfFailedSentDataPackets() {
+		return numberOfFailedSentDataPackets.get();
+	}
 	public int getNumberOfReceivedDataPackets() {
 		return numberOfReceivedDataPackets.get();
 	}
@@ -98,6 +102,9 @@ public class UDTStatistics {
 	}
 	public void incNumberOfSentDataPackets() {
 		numberOfSentDataPackets.incrementAndGet();
+	}
+	public void incNumberOfFailedSentDataPackets() {
+		numberOfFailedSentDataPackets.incrementAndGet();
 	}
 	public void incNumberOfReceivedDataPackets() {
 		numberOfReceivedDataPackets.incrementAndGet();
@@ -184,6 +191,7 @@ public class UDTStatistics {
 		StringBuilder sb=new StringBuilder();
 		sb.append("Statistics for ").append(componentDescription).append("\n");
 		sb.append("Sent data packets: ").append(getNumberOfSentDataPackets()).append("\n");
+		sb.append("Failed to sent data packets: ").append(getNumberOfFailedSentDataPackets()).append("\n");
 		sb.append("Received data packets: ").append(getNumberOfReceivedDataPackets()).append("\n");
 		sb.append("Duplicate data packets: ").append(getNumberOfDuplicateDataPackets()).append("\n");
 		sb.append("ACK received: ").append(getNumberOfACKReceived()).append("\n");

@@ -3,7 +3,6 @@ package udt.util;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -36,7 +35,7 @@ public class Ping extends ClientSession {
 
 	@Override
 	public void onSessionPrepare() {
-		// setTransferSize(packetSize * numberPackets);
+		setTransferSize(PingSize);
 	}
 
 	@Override
@@ -78,11 +77,12 @@ public class Ping extends ClientSession {
 	public void onSessionEnd() {
 		System.out.println(getStatistics());
 
-		NumberFormat format = NumberFormat.getNumberInstance();
-		format.setMaximumFractionDigits(3);
-		time_passed = System.currentTimeMillis() - time_passed;
-		double rate= PingSize / 1000.0 / time_passed;
-		System.out.println("Receive Rate: "+ format.format(rate)+ " MBytes/sec. ");
+		time_passed = (System.currentTimeMillis() - time_passed) / 1000;
+		System.out.format("Total %d MBytes for %d seconds.\r\n", (PingSize/1024/1024), time_passed);
+
+		double rate= (double)PingSize / time_passed / 1024 / 1024;
+
+		System.out.format("Receive Rate: %.3f MBytes/sec.\r\n", rate);
 	}
 
 	@Override
